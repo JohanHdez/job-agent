@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "module": "Node16",
+    "moduleResolution": "Node16"
+  },
+  "references": [
+    { "path": "../../packages/core" },
+    { "path": "../../packages/cv-parser" },
+    { "path": "../../packages/linkedin-mcp" },
+    { "path": "../../packages/reporter" }
+  ],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

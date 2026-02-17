@@ -1,0 +1,42 @@
+{
+  "name": "@job-agent/linkedin-mcp",
+  "version": "1.0.0",
+  "description": "MCP Server for LinkedIn job search and Easy Apply automation",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./agent": {
+      "import": "./dist/agent.js",
+      "types": "./dist/agent.d.ts"
+    }
+  },
+  "bin": {
+    "linkedin-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "start": "node dist/index.js",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@job-agent/core": "*",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "playwright": "^1.44.1",
+    "chalk": "^5.3.0",
+    "winston": "^3.13.0",
+    "dotenv": "^16.4.5",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.12.12",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.4.5"
+  }
+}

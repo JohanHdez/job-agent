@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Agent — Report Viewer</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" />
+  <style>
+    .report-frame {
+      width: 100%;
+      height: calc(100vh - 180px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--bg-surface);
+    }
+
+    .no-report {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      height: 400px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .no-report-icon { font-size: 4rem; opacity: 0.4; }
+    .no-report h2 { color: var(--text-secondary); }
+    .no-report p { font-size: 0.875rem; }
+
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      text-decoration: none;
+      transition: all var(--transition);
+    }
+    .btn-back:hover { border-color: var(--primary); color: var(--primary); }
+  </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <header class="page-header">
+    <a class="logo" href="index.html">
+      <div class="logo-icon">🤖</div>
+      <span class="logo-text">Job Agent</span>
+    </a>
+    <a href="index.html" class="btn-back" style="margin-left:auto">← Back to Configuration</a>
+  </header>
+
+  <main class="main-content">
+    <h1 class="page-title">Session <span>Report</span></h1>
+    <p class="page-description">Results from the last automated job application session.</p>
+
+    <div id="report-container">
+      <!-- Populated by JS -->
+    </div>
+  </main>
+
+  <footer class="page-footer">
+    <p>Job Agent · ⚠️ Use responsibly. Respect LinkedIn's Terms of Service.</p>
+  </footer>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+  async function loadReport() {
+    const container = document.getElementById('report-container');
+
+    try {
+      const res = await fetch('http://localhost:3000/api/jobs/report');
+      const data = await res.json();
+
+      if (data.available) {
+        // Embed the HTML report in an iframe
+        const iframe = document.createElement('iframe');
+        iframe.className = 'report-frame';
+        iframe.src = 'http://localhost:3000/output/report.html';
+        iframe.title = 'Session Report';
+        container.appendChild(iframe);
+      } else {
+        showNoReport('No report generated yet', 'Run the agent first: npm start');
+      }
+    } catch {
+      showNoReport('API server offline', 'Start the server first: npm run dev -w packages/api');
+    }
+  }
+
+  function showNoReport(title, msg) {
+    const container = document.getElementById('report-container');
+    container.innerHTML = `
+      <div class="no-report">
+        <div class="no-report-icon">📊</div>
+        <h2>${title}</h2>
+        <p>${msg}</p>
+        <a href="index.html" class="btn-back">← Configure &amp; Run Agent</a>
+      </div>
+    `;
+  }
+
+  document.addEventListener('DOMContentLoaded', loadReport);
+</script>
+
+</body>
+</html>

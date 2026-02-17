@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Agent — Configuration</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <!-- ── Header ──────────────────────────────────────────────────── -->
+  <header class="page-header">
+    <a class="logo" href="#">
+      <div class="logo-icon">🤖</div>
+      <span class="logo-text">Job Agent</span>
+    </a>
+    <span class="header-badge">v1.0.0</span>
+  </header>
+
+  <!-- ── Main ────────────────────────────────────────────────────── -->
+  <main class="main-content">
+
+    <h1 class="page-title">Configure your <span>Job Search</span></h1>
+    <p class="page-description">
+      Set your preferences below. The agent will search LinkedIn, score jobs against your CV,
+      and automatically apply via Easy Apply.
+    </p>
+
+    <form id="config-form" novalidate>
+
+      <!-- ── 1. Upload CV ──────────────────────────────────────── -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">📄</div>
+          <span class="section-title">Resume / CV</span>
+          <span class="section-subtitle">PDF or DOCX</span>
+        </div>
+
+        <div id="cv-upload-zone" class="upload-zone">
+          <div class="upload-icon">📎</div>
+          <p><strong>Drop your CV here</strong> or click to browse</p>
+          <p style="margin-top:0.375rem;font-size:0.8rem;color:var(--text-muted)">PDF · DOCX · max 10MB</p>
+          <input type="file" id="cv-file-input" accept=".pdf,.docx" />
+        </div>
+
+        <div id="cv-status" class="upload-status" style="display:none">
+          ✅ <span>CV loaded: <strong class="cv-filename"></strong></span>
+        </div>
+      </div>
+
+      <!-- ── 2. Search Filters ─────────────────────────────────── -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🔍</div>
+          <span class="section-title">Search Filters</span>
+        </div>
+
+        <!-- Keywords -->
+        <div class="form-group">
+          <label>Job Keywords</label>
+          <div
+            id="keywords-tags"
+            class="tag-input-wrapper"
+            data-placeholder="Add keyword + Enter"
+          ></div>
+          <p class="tag-hint">Press <kbd>Enter</kbd> or <kbd>,</kbd> to add a keyword</p>
+        </div>
+
+        <!-- Location -->
+        <div class="form-group">
+          <label for="location">Target Location</label>
+          <input type="text" id="location" placeholder="e.g. Spain, Remote, Barcelona" value="Spain" />
+        </div>
+
+        <!-- Modality -->
+        <div class="form-group">
+          <label>Work Modality</label>
+          <div class="options-grid">
+            <label class="option-pill">
+              <input type="checkbox" name="modality" value="Remote" checked /> 🌐 Remote
+            </label>
+            <label class="option-pill">
+              <input type="checkbox" name="modality" value="Hybrid" checked /> 🏢 Hybrid
+            </label>
+            <label class="option-pill">
+              <input type="checkbox" name="modality" value="On-site" /> 📍 On-site
+            </label>
+          </div>
+        </div>
+
+        <!-- Languages -->
+        <div class="form-group">
+          <label>Job Languages</label>
+          <div class="options-grid">
+            <label class="option-pill">
+              <input type="checkbox" name="languages" value="English" checked /> 🇬🇧 English
+            </label>
+            <label class="option-pill">
+              <input type="checkbox" name="languages" value="Spanish" /> 🇪🇸 Spanish
+            </label>
+            <label class="option-pill">
+              <input type="checkbox" name="languages" value="Portuguese" /> 🇵🇹 Portuguese
+            </label>
+            <label class="option-pill">
+              <input type="checkbox" name="languages" value="French" /> 🇫🇷 French
+            </label>
+          </div>
+        </div>
+
+        <!-- Seniority -->
+        <div class="form-group">
+          <label>Seniority Level</label>
+          <div class="options-grid">
+            <label class="option-pill">
+              <input type="checkbox" name="seniority" value="Junior" /> 🌱 Junior
+            </label>
+            <label class="option-pill">
+              <input type="checkbox" name="seniority" value="Mid" checked /> 🧑‍💻 Mid
+            </label>
+            <label class="option-pill">
+              <input type="checkbox" name="seniority" value="Senior" checked /> ⭐ Senior
+            </label>
+            <label class="option-pill">
+              <input type="checkbox" name="seniority" value="Lead" /> 🚀 Lead
+            </label>
+          </div>
+        </div>
+
+        <!-- Date Posted -->
+        <div class="form-group">
+          <label>Date Posted</label>
+          <div class="options-grid">
+            <label class="option-pill">
+              <input type="radio" name="datePosted" value="past_24h" /> ⚡ Last 24h
+            </label>
+            <label class="option-pill">
+              <input type="radio" name="datePosted" value="past_week" checked /> 📅 Last week
+            </label>
+            <label class="option-pill">
+              <input type="radio" name="datePosted" value="past_month" /> 🗓️ Last month
+            </label>
+          </div>
+        </div>
+
+        <!-- Excluded Companies -->
+        <div class="form-group">
+          <label>Excluded Companies</label>
+          <div
+            id="excluded-tags"
+            class="tag-input-wrapper"
+            data-placeholder="Company name + Enter"
+          ></div>
+          <p class="tag-hint">Jobs from these companies will be skipped</p>
+        </div>
+      </div>
+
+      <!-- ── 3. Matching ────────────────────────────────────────── -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🎯</div>
+          <span class="section-title">Matching & Limits</span>
+        </div>
+
+        <!-- Min Score -->
+        <div class="form-group">
+          <label>Minimum Compatibility Score</label>
+          <div class="slider-wrapper">
+            <input type="range" id="min-score" min="0" max="100" value="70" step="5" />
+            <span class="slider-value" id="min-score-display">70</span>
+          </div>
+          <p class="tag-hint">Jobs below this score will be skipped (0–100)</p>
+        </div>
+
+        <!-- Max Applications -->
+        <div class="form-group">
+          <label for="max-apps">Max Applications per Session</label>
+          <input type="number" id="max-apps" min="1" max="25" value="10" />
+          <p class="tag-hint">Maximum: 25 to respect LinkedIn's rate limits</p>
+        </div>
+      </div>
+
+      <!-- ── 4. Cover Letter ────────────────────────────────────── -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">✍️</div>
+          <span class="section-title">Cover Letter</span>
+        </div>
+
+        <div class="form-group">
+          <label>Language</label>
+          <div class="options-grid">
+            <label class="option-pill">
+              <input type="radio" name="coverLang" value="en" checked /> 🇬🇧 English
+            </label>
+            <label class="option-pill">
+              <input type="radio" name="coverLang" value="es" /> 🇪🇸 Spanish
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0">
+          <label>Tone</label>
+          <div class="options-grid">
+            <label class="option-pill">
+              <input type="radio" name="coverTone" value="professional" checked /> 💼 Professional
+            </label>
+            <label class="option-pill">
+              <input type="radio" name="coverTone" value="casual" /> 😊 Casual
+            </label>
+            <label class="option-pill">
+              <input type="radio" name="coverTone" value="enthusiastic" /> 🔥 Enthusiastic
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Submit ─────────────────────────────────────────────── -->
+      <div class="submit-area">
+        <button type="submit" class="btn-submit" id="submit-btn">
+          <span class="btn-text">💾 Save Configuration &amp; Start Agent</span>
+        </button>
+        <p class="submit-disclaimer">
+          ⚠️ Use responsibly. Respect LinkedIn's Terms of Service.<br/>
+          This tool is for personal use only.
+        </p>
+      </div>
+
+    </form>
+  </main>
+
+  <!-- ── Footer ──────────────────────────────────────────────────── -->
+  <footer class="page-footer">
+    <p>Job Agent · Open source · <a href="report.html" style="color:var(--primary)">View last report →</a></p>
+  </footer>
+
+</div>
+
+<!-- Toast container -->
+<div id="toast-container" class="toast-container"></div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

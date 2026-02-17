@@ -1,0 +1,29 @@
+search:
+  keywords:
+    - "Software Engineer"
+    - "Backend Developer"
+    - "TypeScript Developer"
+  location: "Spain"
+  modality:
+    - Remote
+    - Hybrid
+  languages:
+    - English
+    - Spanish
+  seniority:
+    - Mid
+    - Senior
+  datePosted: past_week
+  excludedCompanies:
+    - "Company to Avoid"
+
+matching:
+  minScoreToApply: 70
+  maxApplicationsPerSession: 10
+
+coverLetter:
+  language: en
+  tone: professional
+
+report:
+  format: both
