@@ -1,7 +1,7 @@
 {
   "name": "@job-agent/cli",
   "version": "1.0.0",
-  "description": "CLI entry point — orchestrates the full job application pipeline",
+  "description": "CLI entry point — starts the API server and opens the browser UI",
   "main": "./dist/index.js",
   "type": "module",
   "bin": {
@@ -14,13 +14,7 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@job-agent/core": "*",
-    "@job-agent/cv-parser": "*",
-    "@job-agent/linkedin-mcp": "*",
-    "@job-agent/reporter": "*",
     "chalk": "^5.3.0",
-    "winston": "^3.13.0",
-    "js-yaml": "^4.1.0",
     "dotenv": "^16.4.5",
     "open": "^10.1.0"
   },

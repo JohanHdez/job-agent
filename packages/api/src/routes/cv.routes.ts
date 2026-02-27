@@ -2,8 +2,11 @@ import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
+import type { ProfessionalProfile } from '@job-agent/core';
 import { ApiError } from '../middleware/error.middleware.js';
 import { logger } from '../utils/logger.js';
+
+const OUTPUT_DIR = process.env['OUTPUT_DIR'] ?? path.resolve('./output');
 
 const CV_DIR = process.env['CV_DIR'] ?? path.resolve('./cv');
 
@@ -36,6 +39,21 @@ const upload = multer({
 export const cvRouter = Router();
 
 /**
+ * GET /api/cv/profile
+ * Returns the parsed ProfessionalProfile from output/profile.json, if available.
+ * Used by the UI on page load to restore auto-fill without re-uploading the CV.
+ */
+cvRouter.get('/profile', async (_req: Request, res: Response) => {
+  try {
+    const raw = await fs.readFile(path.join(OUTPUT_DIR, 'profile.json'), 'utf-8');
+    const profile = JSON.parse(raw) as ProfessionalProfile;
+    res.json({ hasProfile: true, profile });
+  } catch {
+    res.json({ hasProfile: false });
+  }
+});
+
+/**
  * GET /api/cv
  * Returns information about the currently uploaded CV.
  */
@@ -65,19 +83,33 @@ cvRouter.get('/', async (_req: Request, res: Response) => {
 
 /**
  * POST /api/cv/upload
- * Accepts a PDF or DOCX file upload and saves it to cv/.
+ * Accepts a PDF or DOCX file upload, saves it to cv/ and parses it immediately.
+ * Returns the extracted ProfessionalProfile so the UI can auto-fill the search form.
  */
-cvRouter.post('/upload', upload.single('cv'), (req: Request, res: Response) => {
+cvRouter.post('/upload', upload.single('cv'), async (req: Request, res: Response) => {
   if (!req.file) {
     throw new ApiError(400, 'No file uploaded');
   }
 
   logger.info(`CV uploaded: ${req.file.originalname} → ${req.file.path}`);
+
+  // Parse CV immediately so the UI can auto-fill the search form
+  let profile: ProfessionalProfile | null = null;
+  try {
+    await fs.mkdir(OUTPUT_DIR, { recursive: true });
+    const { runCvParser } = await import('@job-agent/cv-parser');
+    profile = await runCvParser(req.file.path, path.join(OUTPUT_DIR, 'profile.json'));
+    logger.info(`CV parsed: ${profile.fullName} | ${profile.seniority} | ${profile.skills.length} skills`);
+  } catch (err) {
+    logger.warn(`CV parsing skipped: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   res.json({
     success: true,
     message: 'CV uploaded successfully',
     fileName: req.file.filename,
     sizeBytes: req.file.size,
+    profile,
   });
 });
 

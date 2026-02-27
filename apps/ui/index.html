@@ -17,7 +17,7 @@
       <div class="logo-icon">🤖</div>
       <span class="logo-text">Job Agent</span>
     </a>
-    <span class="header-badge">v1.0.0</span>
+    <span class="header-badge">v2.0.0</span>
   </header>
 
   <!-- ── Main ────────────────────────────────────────────────────── -->
@@ -25,8 +25,8 @@
 
     <h1 class="page-title">Configure your <span>Job Search</span></h1>
     <p class="page-description">
-      Set your preferences below. The agent will search LinkedIn, score jobs against your CV,
-      and automatically apply via Easy Apply.
+      Upload your CV, set your preferences, choose your platforms and click <strong>Start Search</strong>.
+      The agent will run fully in the browser — no terminal needed.
     </p>
 
     <form id="config-form" novalidate>
@@ -49,10 +49,39 @@
         <div id="cv-status" class="upload-status" style="display:none">
           ✅ <span>CV loaded: <strong class="cv-filename"></strong></span>
         </div>
+
+        <!-- Profile summary card — shown after CV is parsed -->
+        <div id="profile-card" style="display:none; margin-top:1rem; padding:1rem 1.25rem; border-radius:10px; background:var(--bg-elevated); border:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
+            <span style="font-size:1.5rem;">👤</span>
+            <div>
+              <div id="profile-name" style="font-weight:700;font-size:1rem;color:var(--text-primary)"></div>
+              <div id="profile-headline" style="font-size:0.8rem;color:var(--text-muted)"></div>
+            </div>
+            <div style="margin-left:auto;text-align:right;">
+              <span id="profile-seniority" style="font-size:0.75rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:20px;background:var(--primary);color:#fff;"></span>
+            </div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.5rem;" id="profile-skills-list"></div>
+          <div style="font-size:0.75rem;color:var(--text-muted);">
+            📍 <span id="profile-location-text"></span> &nbsp;·&nbsp;
+            🌐 <span id="profile-langs-text"></span> &nbsp;·&nbsp;
+            🕐 <span id="profile-exp-text"></span>
+          </div>
+          <div style="margin-top:0.5rem;font-size:0.75rem;color:var(--primary);">
+            ✨ Form auto-filled from your profile
+          </div>
+        </div>
+      </div>
+
+      <!-- CV Gate notice — shown until CV is validated -->
+      <div id="cv-gate-notice" class="cv-required-notice" style="display:none">
+        <span class="notice-icon">🔒</span>
+        <span><strong>Upload your CV first</strong> — all search options and the Start Search button will unlock automatically after your CV is analysed.</span>
       </div>
 
       <!-- ── 2. Search Filters ─────────────────────────────────── -->
-      <div class="section">
+      <div class="section" data-requires-cv="true">
         <div class="section-header">
           <div class="section-icon">🔍</div>
           <span class="section-title">Search Filters</span>
@@ -60,13 +89,13 @@
 
         <!-- Keywords -->
         <div class="form-group">
-          <label>Job Keywords</label>
+          <label>Job Keywords <span style="color:var(--text-muted);font-weight:400;font-size:0.8rem;">(optional — auto-detected from your CV)</span></label>
           <div
             id="keywords-tags"
             class="tag-input-wrapper"
-            data-placeholder="Add keyword + Enter"
+            data-placeholder="Add keyword + Enter (or leave empty)"
           ></div>
-          <p class="tag-hint">Press <kbd>Enter</kbd> or <kbd>,</kbd> to add a keyword</p>
+          <p class="tag-hint">Leave empty to let the agent derive keywords from your CV profile. Press <kbd>Enter</kbd> or <kbd>,</kbd> to add manually.</p>
         </div>
 
         <!-- Location -->
@@ -157,11 +186,97 @@
         </div>
       </div>
 
-      <!-- ── 3. Matching ────────────────────────────────────────── -->
-      <div class="section">
+      <!-- ── 3. Platforms ───────────────────────────────────────── -->
+      <div class="section" data-requires-cv="true">
+        <div class="section-header">
+          <div class="section-icon">🌐</div>
+          <span class="section-title">Search Platforms</span>
+          <span class="section-subtitle">Select where to look for jobs</span>
+        </div>
+
+        <div class="form-group">
+          <label>Job Boards</label>
+          <div class="options-grid platforms-grid">
+            <label class="option-pill platform-pill">
+              <input type="checkbox" name="platforms" value="linkedin" checked />
+              <span class="platform-logo platform-linkedin">in</span>
+              LinkedIn
+              <span class="platform-tag">Global</span>
+            </label>
+            <label class="option-pill platform-pill">
+              <input type="checkbox" name="platforms" value="indeed" checked />
+              <span class="platform-logo platform-indeed">id</span>
+              Indeed
+              <span class="platform-tag">Global</span>
+            </label>
+            <label class="option-pill platform-pill">
+              <input type="checkbox" name="platforms" value="computrabajo" checked />
+              <span class="platform-logo platform-ct">ct</span>
+              Computrabajo
+              <span class="platform-tag">LATAM</span>
+            </label>
+            <label class="option-pill platform-pill">
+              <input type="checkbox" name="platforms" value="bumeran" />
+              <span class="platform-logo platform-bu">bu</span>
+              Bumeran
+              <span class="platform-tag">LATAM</span>
+            </label>
+            <label class="option-pill platform-pill">
+              <input type="checkbox" name="platforms" value="getonboard" checked />
+              <span class="platform-logo platform-gob">gb</span>
+              Get on Board
+              <span class="platform-tag">LATAM Tech</span>
+            </label>
+            <label class="option-pill platform-pill">
+              <input type="checkbox" name="platforms" value="infojobs" />
+              <span class="platform-logo platform-ij">ij</span>
+              InfoJobs
+              <span class="platform-tag">Spain</span>
+            </label>
+            <label class="option-pill platform-pill">
+              <input type="checkbox" name="platforms" value="greenhouse" id="gh-platform-cb" checked />
+              <span class="platform-logo platform-gh">gh</span>
+              Greenhouse
+              <span class="platform-tag">Global ATS</span>
+            </label>
+          </div>
+          <p class="tag-hint">LinkedIn requires credentials in .env. Other platforms work without login.</p>
+        </div>
+
+        <!-- Greenhouse companies — visible when Greenhouse platform is selected -->
+        <div class="form-group" id="greenhouse-section">
+          <label>
+            Greenhouse Target Companies
+            <span style="font-size:0.72rem;font-weight:400;color:var(--text-muted);margin-left:0.5rem">
+              — board tokens (slugs)
+            </span>
+          </label>
+          <div class="tags-input" id="greenhouse-tags" data-placeholder="e.g. stripe, figma, notion, airbnb…"></div>
+          <p class="tag-hint">
+            Enter the slug of each company's Greenhouse board.
+            Find it at <code style="font-size:0.75rem">boards.greenhouse.io/<strong>slug</strong></code>.
+            Applied jobs will appear in your
+            <a href="https://my.greenhouse.io" target="_blank" rel="noopener" style="color:var(--primary)">my.greenhouse.io</a>
+            dashboard.
+          </p>
+        </div>
+      </div>
+
+      <!-- ── 4. Matching ────────────────────────────────────────── -->
+      <div class="section" data-requires-cv="true">
         <div class="section-header">
           <div class="section-icon">🎯</div>
-          <span class="section-title">Matching & Limits</span>
+          <span class="section-title">Matching &amp; Limits</span>
+        </div>
+
+        <!-- Max Jobs to Find -->
+        <div class="form-group">
+          <label>Max Jobs to Collect</label>
+          <div class="slider-wrapper">
+            <input type="range" id="max-jobs" min="25" max="300" value="100" step="25" />
+            <span class="slider-value" id="max-jobs-display">100</span>
+          </div>
+          <p class="tag-hint">Total job listings to collect across all platforms (25–300)</p>
         </div>
 
         <!-- Min Score -->
@@ -178,12 +293,12 @@
         <div class="form-group">
           <label for="max-apps">Max Applications per Session</label>
           <input type="number" id="max-apps" min="1" max="25" value="10" />
-          <p class="tag-hint">Maximum: 25 to respect LinkedIn's rate limits</p>
+          <p class="tag-hint">Maximum: 25 LinkedIn Easy Apply submissions per session</p>
         </div>
       </div>
 
-      <!-- ── 4. Cover Letter ────────────────────────────────────── -->
-      <div class="section">
+      <!-- ── 5. Cover Letter ────────────────────────────────────── -->
+      <div class="section" data-requires-cv="true">
         <div class="section-header">
           <div class="section-icon">✍️</div>
           <span class="section-title">Cover Letter</span>
@@ -217,13 +332,98 @@
         </div>
       </div>
 
+      <!-- ── 6. Application Defaults ───────────────────────────── -->
+      <div class="section" data-requires-cv="true">
+        <div class="section-header">
+          <div class="section-icon">📋</div>
+          <span class="section-title">Application Defaults</span>
+          <span class="section-subtitle">Auto-fill common questions in LinkedIn &amp; Greenhouse forms</span>
+        </div>
+
+        <!-- Work auth + Sponsorship (2 columns) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Authorized to work in target country?</label>
+            <div class="options-grid">
+              <label class="option-pill">
+                <input type="radio" name="authorizedToWork" value="true" checked /> ✅ Yes
+              </label>
+              <label class="option-pill">
+                <input type="radio" name="authorizedToWork" value="false" /> ❌ No
+              </label>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Requires visa sponsorship?</label>
+            <div class="options-grid">
+              <label class="option-pill">
+                <input type="radio" name="requiresSponsorship" value="true" /> Yes
+              </label>
+              <label class="option-pill">
+                <input type="radio" name="requiresSponsorship" value="false" checked /> ✅ No
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Relocation + Available from (2 columns) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.25rem">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Willing to relocate?</label>
+            <div class="options-grid">
+              <label class="option-pill">
+                <input type="radio" name="willingToRelocate" value="true" /> Yes
+              </label>
+              <label class="option-pill">
+                <input type="radio" name="willingToRelocate" value="false" checked /> ✅ No
+              </label>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label for="available-from">Available from / Notice period</label>
+            <input type="text" id="available-from" value="Immediately"
+                   placeholder="e.g. Immediately · 2 weeks · 1 month" />
+          </div>
+        </div>
+
+        <!-- Salary + How did you hear (2 columns) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.25rem">
+          <div class="form-group" style="margin-bottom:0">
+            <label for="salary-expectation">Expected salary <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+            <input type="text" id="salary-expectation"
+                   placeholder="e.g. 70000 · 60k–80k · leave empty to skip" />
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label for="how-did-you-hear">How did you find the role?</label>
+            <input type="text" id="how-did-you-hear" value="LinkedIn"
+                   placeholder="LinkedIn · Online search · Company website" />
+          </div>
+        </div>
+
+        <!-- GitHub + Portfolio (2 columns) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.25rem">
+          <div class="form-group" style="margin-bottom:0">
+            <label for="github-url">GitHub URL <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+            <input type="url" id="github-url" placeholder="https://github.com/tu-usuario" />
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label for="portfolio-url">Portfolio / Website <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+            <input type="url" id="portfolio-url" placeholder="https://tu-portfolio.com" />
+          </div>
+        </div>
+
+        <p class="tag-hint" style="margin-top:1rem">
+          These answers are used to auto-fill LinkedIn Easy Apply and Greenhouse forms.
+        </p>
+      </div>
+
       <!-- ── Submit ─────────────────────────────────────────────── -->
-      <div class="submit-area">
-        <button type="submit" class="btn-submit" id="submit-btn">
-          <span class="btn-text">💾 Save Configuration &amp; Start Agent</span>
+      <div class="submit-area" data-requires-cv="true">
+        <button type="submit" class="btn-submit" id="submit-btn" disabled>
+          <span class="btn-text">🚀 Start Search</span>
         </button>
         <p class="submit-disclaimer">
-          ⚠️ Use responsibly. Respect LinkedIn's Terms of Service.<br/>
+          ⚠️ Use responsibly. Respect the Terms of Service of each platform.<br/>
           This tool is for personal use only.
         </p>
       </div>

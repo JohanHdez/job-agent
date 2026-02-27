@@ -19,6 +19,7 @@ import dotenv from 'dotenv';
 import { configRouter } from './routes/config.routes.js';
 import { cvRouter } from './routes/cv.routes.js';
 import { jobsRouter } from './routes/jobs.routes.js';
+import { agentRouter } from './routes/agent.routes.js';
 import { errorMiddleware, notFoundMiddleware } from './middleware/error.middleware.js';
 import { logger } from './utils/logger.js';
 
@@ -50,6 +51,7 @@ app.use('/output', express.static(outputPath));
 app.use('/api/config', configRouter);
 app.use('/api/cv', cvRouter);
 app.use('/api/jobs', jobsRouter);
+app.use('/api', agentRouter);
 
 /** Health check */
 app.get('/api/health', (_req, res) => {

@@ -39,8 +39,11 @@ export function scoreJob(job: JobListing, profile: ProfessionalProfile): JobList
   const profileSkills = new Set(profile.techStack.map((s) => s.toLowerCase()));
   const jobSkills = job.requiredSkills.map((s) => s.toLowerCase());
   const matchedSkills = jobSkills.filter((s) => profileSkills.has(s));
+  // When no required skills are listed, give benefit of the doubt (0.7)
+  // rather than a neutral 0.5 — the candidate is likely qualified if they
+  // passed keyword/seniority filters and the job simply has no structured skills.
   const skillScore =
-    jobSkills.length > 0 ? matchedSkills.length / jobSkills.length : 0.5;
+    jobSkills.length > 0 ? matchedSkills.length / jobSkills.length : 0.7;
 
   // ── 2. Seniority match (25%) ─────────────────────────────────────────────
   const profileRank = SENIORITY_RANK[profile.seniority];

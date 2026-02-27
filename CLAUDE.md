@@ -1,181 +1,175 @@
 # Job Application Agent — Build Instructions
 
 ## Project Overview
-Build a production-ready, TypeScript monorepo that acts as an autonomous LinkedIn
-job application agent. The user uploads their CV (PDF), the agent analyzes their
-professional profile, searches LinkedIn for matching jobs, applies automatically
-via Easy Apply, and generates a report.
+Production-ready TypeScript monorepo that autonomously searches for jobs across multiple platforms,
+scores them against the candidate's CV, and applies automatically via LinkedIn Easy Apply, Greenhouse
+API/Playwright, and Lever API. The user interacts entirely through the browser — no terminal needed.
 
 ## Tech Stack
 - Language: TypeScript (strict mode, no `any`)
-- Runtime: Node.js 18+
+- Runtime: Node.js 18+ (ESM — `"type": "module"` in every package.json)
 - Structure: npm workspaces monorepo
 - Browser automation: Playwright + Chromium
-- MCP Server: @modelcontextprotocol/sdk
 - CV parsing: pdf-parse + mammoth
-- API: Express.js
+- API: Express.js + SSE for real-time progress
 - Config: js-yaml + dotenv
 - Logs: chalk + winston
 
-## Monorepo Structure to Create
+## Current Version: v2 (multi-platform, browser-first)
+
+### Architecture
+```
+npm start
+  └─► Express on port 3000
+  └─► Opens http://localhost:3000 in browser
+        ↓ User fills form + uploads CV
+  POST /api/run
+        ↓ SSE stream
+  GET /api/run/progress  (real-time step events)
+        ↓ Agent finishes
+  GET /api/report        (JSON results → report.html)
+```
+
+## Monorepo Structure
 ```
 job-agent/
-├── package.json                  (root, workspaces)
-├── tsconfig.base.json            (shared TS config)
+├── package.json                  (root workspaces)
+├── tsconfig.base.json            (strict, Node16 ESM)
+├── .env                          (LinkedIn credentials — gitignored)
 ├── .env.example
-├── .gitignore
-├── CLAUDE.md                     (this file)
+├── config.yaml                   (user search config — gitignored)
+├── CLAUDE.md
 │
 ├── packages/
-│   ├── core/                     (shared types & interfaces)
-│   │   ├── src/types/
-│   │   │   ├── cv.types.ts
-│   │   │   ├── job.types.ts
-│   │   │   ├── config.types.ts
-│   │   │   └── index.ts
-│   │   ├── package.json
-│   │   └── tsconfig.json
+│   ├── core/                     (@job-agent/core) — shared types only
+│   │   └── src/types/
+│   │       ├── cv.types.ts       (ProfessionalProfile, WorkExperience, …)
+│   │       ├── job.types.ts      (JobListing, ApplicationRecord, PlatformId)
+│   │       └── config.types.ts   (AppConfig incl. platforms & applicationDefaults)
 │   │
-│   ├── cv-parser/                (PDF parser subagent)
-│   │   ├── src/
-│   │   │   ├── parsers/pdf.parser.ts
-│   │   │   ├── extractors/profile.builder.ts
-│   │   │   └── index.ts
-│   │   ├── package.json
-│   │   └── tsconfig.json
+│   ├── cv-parser/                (@job-agent/cv-parser)
+│   │   └── src/
+│   │       ├── parsers/pdf.parser.ts
+│   │       ├── extractors/profile.builder.ts
+│   │       └── index.ts          (parseCV)
 │   │
-│   ├── linkedin-mcp/             (MCP Server - most critical)
-│   │   ├── src/
-│   │   │   ├── tools/
-│   │   │   │   ├── search-jobs.tool.ts
-│   │   │   │   ├── get-job-details.tool.ts
-│   │   │   │   └── easy-apply.tool.ts
-│   │   │   ├── browser/
-│   │   │   │   ├── linkedin.session.ts
-│   │   │   │   └── selectors.constants.ts
-│   │   │   ├── scoring/job-matcher.ts
-│   │   │   └── index.ts
-│   │   ├── package.json
-│   │   └── tsconfig.json
+│   ├── linkedin-mcp/             (@job-agent/linkedin-mcp)
+│   │   └── src/
+│   │       ├── tools/
+│   │       │   ├── search-jobs.tool.ts
+│   │       │   ├── get-job-details.tool.ts
+│   │       │   └── easy-apply.tool.ts    ← fillTextInputs + fillRadioButtons
+│   │       ├── browser/
+│   │       │   ├── linkedin.session.ts
+│   │       │   └── selectors.constants.ts
+│   │       ├── scoring/job-matcher.ts    (rankJobs)
+│   │       └── agent.ts                  (runLinkedInAgent)
 │   │
-│   ├── api/                      (Express REST API)
-│   │   ├── src/
-│   │   │   ├── routes/
-│   │   │   │   ├── config.routes.ts
-│   │   │   │   ├── cv.routes.ts
-│   │   │   │   └── jobs.routes.ts
-│   │   │   ├── middleware/error.middleware.ts
-│   │   │   └── server.ts
-│   │   ├── package.json
-│   │   └── tsconfig.json
+│   ├── job-search/               (@job-agent/job-search)
+│   │   └── src/
+│   │       ├── interfaces/platform.interface.ts  (IPlatformSearcher)
+│   │       ├── platforms/
+│   │       │   ├── linkedin.searcher.ts
+│   │       │   ├── indeed.searcher.ts
+│   │       │   ├── computrabajo.searcher.ts
+│   │       │   ├── bumeran.searcher.ts
+│   │       │   ├── getonboard.searcher.ts
+│   │       │   ├── infojobs.searcher.ts
+│   │       │   └── greenhouse.searcher.ts
+│   │       └── index.ts          (runMultiPlatformSearch)
 │   │
-│   └── reporter/                 (Report generator subagent)
-│       ├── src/
-│       │   ├── templates/report.template.ts
-│       │   └── index.ts
-│       ├── package.json
-│       └── tsconfig.json
+│   ├── ats-apply/                (@job-agent/ats-apply)
+│   │   └── src/
+│   │       ├── detectors/ats-detector.ts     (detectAts)
+│   │       ├── handlers/
+│   │       │   ├── greenhouse.handler.ts     (REST API apply)
+│   │       │   ├── greenhouse-playwright.handler.ts  (form fallback)
+│   │       │   └── lever.handler.ts          (REST API apply)
+│   │       ├── cover-letter.ts               (generateCoverLetter EN+ES)
+│   │       └── index.ts          (applyToAts)
+│   │
+│   ├── api/                      (@job-agent/api)
+│   │   └── src/
+│   │       ├── routes/
+│   │       │   ├── agent.routes.ts   (POST /api/run, SSE /api/run/progress, GET /api/report)
+│   │       │   ├── config.routes.ts
+│   │       │   └── cv.routes.ts
+│   │       ├── middleware/error.middleware.ts
+│   │       └── server.ts
+│   │
+│   └── reporter/                 (@job-agent/reporter)
+│       └── src/
+│           ├── templates/report.template.ts
+│           └── index.ts
 │
 ├── apps/
-│   ├── ui/                       (Browser form - HTML vanilla today, React/Angular ready tomorrow)
-│   │   ├── index.html            (filters form: keywords, location, modality, language, seniority, salary, max applications)
-│   │   ├── report.html           (report viewer)
+│   ├── ui/
+│   │   ├── index.html            (config form — sections: CV, Filters, Platforms,
+│   │   │                          Matching, Cover Letter, Application Defaults)
+│   │   ├── progress.html         (real-time SSE progress viewer)
+│   │   ├── report.html           (report viewer — loads GET /api/report)
 │   │   └── assets/
 │   │       ├── style.css
-│   │       └── app.js
+│   │       ├── app.js            (form logic + submitConfig + configToYaml)
+│   │       ├── progress.js       (SSE EventSource client)
+│   │       └── report.js         (fetch /api/report + render cards)
 │   │
-│   └── cli/                      (CLI entry point for Claude Code)
-│       ├── src/index.ts
-│       └── package.json
+│   └── cli/                      (simplified — just starts Express + opens browser)
+│       └── src/index.ts
 │
-├── cv/                           (user drops CV here - gitignored)
-├── output/                       (generated results - gitignored)
-│   ├── profile.json
-│   ├── jobs-found.json
-│   ├── applications.json
-│   └── report.md
+├── cv/                           (gitignored — user drops CV here)
+└── output/                       (gitignored — generated results)
 ```
 
-## Coding Standards (enforce strictly)
-- All interfaces in `packages/core/src/types/` — never define types inline
-- No `any` — use `unknown` and type guards instead
-- All async functions must handle errors with typed `try/catch`
-- LinkedIn CSS selectors must live ONLY in `selectors.constants.ts` (never hardcoded inline)
-- Every public function must have a JSDoc comment
-- Use `chalk` for all console output with consistent levels: info (blue), success (green), warn (yellow), error (red)
-- Config always read from `config.yaml` via `js-yaml`, never hardcoded values
-- English comments and variable names throughout (for LinkedIn shareability)
+## Build Order
+```
+core → cv-parser → linkedin-mcp → job-search → ats-apply → reporter → api → cli
+```
 
-## Bilingual LinkedIn Support (EN + ES) — Critical
-LinkedIn shows different text depending on the user's account language. All selectors and
-regex patterns must handle **both English and Spanish**:
-- Easy Apply badge: `"Easy Apply"` → `"Solicitud sencilla"`
-- Next button: `aria-label="Continue to next step"` → `"Continuar al siguiente paso"`
-- Submit button: `aria-label="Submit application"` → `"Enviar solicitud"`
-- Review button: `aria-label="Review your application"` → `"Revisar"` / `"Revisar tu solicitud"`
-- Dismiss button: `aria-label="Dismiss"` → `"Descartar"` / `"Cerrar"`
-- Already applied: `aria-label*="Applied"` → `aria-label*="Solicitado"`
-- Phone label regex: `/phone|tel|mobile|teléfono|telefono|número|numero/i`
+## Key Type Definitions (packages/core)
 
-All selector values in `selectors.constants.ts` use comma-separated CSS selectors to cover
-both languages in a single `page.locator()` call.
-
-## Easy Apply Form Filling Rules
-- `fillTextInputs()` — fills empty text inputs matching phone/tel/mobile labels (EN + ES)
-- `fillRadioButtons()` — exists in `easy-apply.tool.ts`; clicks first option only if no radio
-  in the group is already checked (safe fallback for resume selection and Yes/No questions)
-- Always call both fill helpers before advancing each step (`advanceStep()`)
-- `advanceStep()` priority: error > success > submit > review > next > done
-
-## References Folder
-`references/` contains PNG screenshots captured during real LinkedIn sessions.
-Use them to verify selectors are still valid when LinkedIn updates its frontend.
-Do NOT commit personal data screenshots to this folder.
-
-## Key Type Definitions to Create in core/
-
-### cv.types.ts
+### config.types.ts — AppConfig
 ```typescript
-export interface ProfessionalProfile {
-  fullName: string;
-  email: string;
-  phone?: string;
-  location?: string;
-  linkedinUrl?: string;
-  headline: string;
-  summary: string;
-  seniority: 'Junior' | 'Mid' | 'Senior' | 'Lead' | 'Principal' | 'Executive';
-  yearsOfExperience: number;
-  skills: string[];
-  techStack: string[];
-  languages: Language[];
-  experience: WorkExperience[];
-  education: Education[];
-}
+export type PlatformId =
+  'linkedin' | 'indeed' | 'computrabajo' | 'bumeran' | 'getonboard' | 'infojobs' | 'greenhouse';
 
-export interface WorkExperience {
-  company: string;
-  title: string;
-  startDate: string;
-  endDate: string | 'Present';
-  description: string[];
-  technologies: string[];
-}
-
-export interface Education {
-  institution: string;
-  degree: string;
-  field: string;
-  graduationYear: number;
-}
-
-export interface Language {
-  name: string;
-  level: 'Native' | 'Fluent' | 'Advanced' | 'Intermediate' | 'Basic';
+export interface AppConfig {
+  search: {
+    keywords: string[];
+    location: string;
+    modality: ('Remote' | 'Hybrid' | 'On-site')[];
+    languages: string[];
+    seniority: string[];
+    datePosted: 'past_24h' | 'past_week' | 'past_month';
+    excludedCompanies: string[];
+    platforms: PlatformId[];            // required — selected in UI checkboxes
+    greenhouseCompanies?: string[];     // board slugs, e.g. ["stripe","figma"]
+    maxJobsToCollect?: number;
+  };
+  matching: {
+    minScoreToApply: number;
+    maxApplicationsPerSession: number;
+  };
+  coverLetter: {
+    language: 'en' | 'es';
+    tone: 'professional' | 'casual' | 'enthusiastic';
+  };
+  report: { format: 'markdown' | 'html' | 'both'; };
+  applicationDefaults?: {             // auto-fills LinkedIn Easy Apply + Greenhouse forms
+    authorizedToWork?: boolean;
+    requiresSponsorship?: boolean;
+    willingToRelocate?: boolean;
+    salaryExpectation?: string;
+    availableFrom?: string;
+    githubUrl?: string;
+    portfolioUrl?: string;
+    howDidYouHear?: string;
+    yearsOfExperience?: number;       // auto-set from CV if not provided
+  };
 }
 ```
 
-### job.types.ts
+### job.types.ts — JobListing
 ```typescript
 export interface JobListing {
   id: string;
@@ -187,6 +181,7 @@ export interface JobListing {
   requiredSkills: string[];
   postedAt: string;
   applyUrl: string;
+  platform: PlatformId;        // required — added in v2
   hasEasyApply: boolean;
   compatibilityScore: number;
 }
@@ -198,105 +193,90 @@ export type ApplicationStatus =
   | 'failed'
   | 'skipped_low_score';
 
-export interface ApplicationRecord {
-  job: JobListing;
-  status: ApplicationStatus;
-  appliedAt: string;
-  errorMessage?: string;
-}
+export type ApplicationMethod =
+  | 'linkedin_easy_apply'
+  | 'greenhouse_api'
+  | 'lever_api'
+  | 'email'
+  | 'manual';
 ```
 
-### config.types.ts
-```typescript
-export interface AppConfig {
-  search: {
-    keywords: string[];
-    location: string;
-    modality: ('Remote' | 'Hybrid' | 'On-site')[];
-    languages: string[];
-    seniority: string[];
-    datePosted: 'past_24h' | 'past_week' | 'past_month';
-    excludedCompanies: string[];
-  };
-  matching: {
-    minScoreToApply: number;
-    maxApplicationsPerSession: number;
-  };
-  coverLetter: {
-    language: 'en' | 'es';
-    tone: 'professional' | 'casual' | 'enthusiastic';
-  };
-  report: {
-    format: 'markdown' | 'html' | 'both';
-  };
-}
+## Coding Standards (enforce strictly)
+- All interfaces in `packages/core/src/types/` — never define types inline
+- No `any` — use `unknown` and type guards instead
+- All async functions must handle errors with typed `try/catch`
+- LinkedIn CSS selectors must live ONLY in `selectors.constants.ts` (never hardcoded inline)
+- Every public function must have a JSDoc comment
+- Use `chalk` for console output: info (blue), success (green), warn (yellow), error (red)
+- Config always read from `config.yaml` via `js-yaml`, never hardcoded values
+- English comments and variable names throughout
+- `"type": "module"` — all imports must include `.js` extension even for `.ts` source files
+- `exactOptionalPropertyTypes: true` — never assign `undefined` to optional fields explicitly
+
+## CSS Rules (apps/ui/assets/style.css)
+- Dark theme uses CSS custom properties (--bg-*, --text-*, --primary, --border, etc.)
+- Input selectors MUST include ALL input types: `text`, `number`, `email`, `url`
+  ```css
+  input[type="text"], input[type="number"], input[type="email"], input[type="url"],
+  textarea, select { ... }
+  ```
+  Missing `type="url"` causes URL inputs to render with browser-default styles (white bg).
+- Same rule applies to `:focus` selectors.
+
+## Bilingual Support (EN + ES) — Critical
+LinkedIn and Greenhouse show different text by user's account language.
+All selectors and regex must handle both:
+- Easy Apply badge: `"Easy Apply"` ↔ `"Solicitud sencilla"`
+- Next button: `aria-label="Continue to next step"` ↔ `"Continuar al siguiente paso"`
+- Submit: `aria-label="Submit application"` ↔ `"Enviar solicitud"`
+- Already applied: `aria-label*="Applied"` ↔ `aria-label*="Solicitado"`
+- Phone regex: `/phone|tel|mobile|teléfono|telefono|número|numero/i`
+- Work auth regex: `/author|eligible|legal.*work|right.*work|permit.*work/i`
+- Sponsorship regex: `/sponsor|visa\s*status|visa\s*support|immigration/i`
+- Relocation regex: `/relocat/i`
+
+## Easy Apply Form Filling Rules
+- `fillTextInputs(page, phone?, defaults?)` — fills phone, salary, GitHub, portfolio, notice period
+- `fillRadioButtons(page, defaults?)` — detects question text from legend/h3/span, clicks correct
+  Yes/No option for authorization/sponsorship/relocation; falls back to first/last positionally
+- Always call both helpers before advancing each step (`advanceStep()`)
+- `advanceStep()` priority: error → success → submit → review → next → done
+- `waitUntil: 'domcontentloaded'` (NOT `'networkidle'`) — LinkedIn's SPA never reaches networkidle
+
+## Scoring Rules (packages/linkedin-mcp/src/scoring/job-matcher.ts)
+- skillsMatch: 50% weight — when `requiredSkills: []`, default is **0.7** (benefit of doubt)
+- seniorityMatch: 25% weight
+- keywordMatch: 15% weight
+- locationMatch: 10% weight
+- Keyword matching uses **word boundaries** (`\b`), never substring `.includes()`
+  e.g. "engineer" must NOT match "engineering manager"
+
+## ATS Detection & Apply (packages/ats-apply)
+URL patterns:
+- `boards.greenhouse.io/*` or `job-boards.greenhouse.io/*` → Greenhouse REST API
+  Fallback: Playwright form fill if API returns 404/HTML
+- `jobs.lever.co/*` → Lever REST API
+- Greenhouse Playwright handler fills: standard fields + custom fields via `fillCustomFields()`
+  (radio groups for auth/sponsorship/relocation, text inputs for salary/GitHub/portfolio/notice)
+
+## Rate Limiting Rules
+- Wait 3–5 s (randomized) between job search scrolls
+- Wait 8–12 s (randomized) between Easy Apply submissions
+- If LinkedIn shows CAPTCHA or unusual-activity warning: STOP, log, save progress
+- Never exceed `config.matching.maxApplicationsPerSession`
+
+## Gitflow Branch Strategy
 ```
-
-## MCP Server Tools to Implement
-
-The linkedin-mcp package must expose these MCP tools:
-
-1. **search_jobs** — Search LinkedIn jobs using Playwright, returns JobListing[]
-2. **get_job_details** — Get full description of a specific job by ID
-3. **easy_apply** — Execute Easy Apply flow for a job ID, returns ApplicationRecord
-4. **check_rate_limit** — Returns boolean if we should pause (respect LinkedIn limits)
-
-## UI Form Requirements (apps/ui/index.html)
-
-Create a professional, modern single-page form with these fields:
-- Job keywords (text input with tag chips)
-- Target location (text input)
-- Work modality (checkboxes: Remote, Hybrid, On-site)
-- Languages (checkboxes: English, Spanish, Portuguese, French)
-- Seniority level (multi-select: Junior, Mid, Senior, Lead)
-- Date posted filter (radio: Last 24h, Last week, Last month)
-- Minimum compatibility score (slider 0-100, default 70)
-- Max applications per session (number input, default 10, max 25)
-- Excluded companies (tag input)
-- Cover letter language (radio: English, Spanish)
-- Cover letter tone (radio: Professional, Casual, Enthusiastic)
-
-On form submit: write config.yaml to the project root and show a success message.
-The form must be beautiful, production-quality UI — not a basic HTML form.
-Use a dark theme with modern typography. Must look like a real SaaS product.
-
-## Execution Flow (when running `npm start`)
-
-1. Check that `cv/` folder has exactly one PDF file — if not, prompt user
-2. Check that `config.yaml` exists — if not, open `apps/ui/index.html` in browser
-3. Run cv-parser → generate `output/profile.json`
-4. Start linkedin-mcp server
-5. Search jobs using profile keywords + config filters
-6. Score each job for compatibility against profile
-7. Filter jobs above `config.matching.minScoreToApply`
-8. Apply to filtered jobs up to `config.matching.maxApplicationsPerSession`
-9. For each application: log result to `output/applications.json`
-10. Run reporter → generate `output/report.md` and `output/report.html`
-11. Open `output/report.html` in default browser
-
-## Rate Limiting Rules (critical — do not skip)
-- Wait 3-5 seconds (randomized) between each job search scroll
-- Wait 8-12 seconds (randomized) between each Easy Apply submission
-- If LinkedIn shows a CAPTCHA or unusual activity warning: STOP, log the error, save progress
-- Never exceed maxApplicationsPerSession from config
-
-## README.md to Generate
-Create a professional README with:
-- Project description and motivation
-- Architecture diagram (ASCII)
-- Prerequisites
-- Installation steps
-- Usage guide
-- Configuration reference (all config.yaml fields)
-- Project structure explanation
-- How to extend/migrate to React or Angular
-- Contributing guide
-- License (MIT)
-- Note: "⚠️ Use responsibly. Respect LinkedIn's Terms of Service."
+main        ← production releases (tagged vX.Y.Z)
+develop     ← integration branch
+feature/*   ← new features branched from develop
+hotfix/*    ← urgent fixes branched from main, merged to main + develop
+release/*   ← release prep branched from develop, merged to main + develop
+```
 
 ## Important Notes
 - All output files are gitignored — never commit personal data
 - The `cv/` folder is gitignored — never commit the CV
-- LinkedIn selectors change frequently — all selectors in selectors.constants.ts with comments indicating what they target
-- The API package (packages/api) must be designed so apps/ui can be replaced with React/Angular with zero backend changes
-- Code must be clean enough to share on LinkedIn as a portfolio project
+- `.env` is gitignored — credentials never committed
+- `config.yaml` is gitignored — user config never committed
+- The API is designed so `apps/ui` can be replaced with React/Angular with zero backend changes

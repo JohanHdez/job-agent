@@ -40,3 +40,12 @@ Thumbs.db
 
 # Reference screenshots (may contain personal LinkedIn data)
 references/
+
+# Claude Code memory (user-specific, not for repo)
+.claude/
+
+# One-off test/debug scripts
+test-*.mjs
+
+# Accidental duplicate env files
+.env.example.example

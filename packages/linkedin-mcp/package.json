@@ -13,6 +13,10 @@
     "./agent": {
       "import": "./dist/agent.js",
       "types": "./dist/agent.d.ts"
+    },
+    "./scoring": {
+      "import": "./dist/scoring/job-matcher.js",
+      "types": "./dist/scoring/job-matcher.d.ts"
     }
   },
   "bin": {

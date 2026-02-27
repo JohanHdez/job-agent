@@ -16,6 +16,10 @@ search:
   datePosted: past_week
   excludedCompanies:
     - "Company to Avoid"
+  platforms:
+    - linkedin
+    - indeed
+    - getonboard
 
 matching:
   minScoreToApply: 70

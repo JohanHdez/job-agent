@@ -3,33 +3,243 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Job Agent — Report Viewer</title>
+  <title>Job Agent — Report</title>
   <link rel="stylesheet" href="assets/style.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" />
   <style>
-    .report-frame {
-      width: 100%;
-      height: calc(100vh - 180px);
+    /* ── Report-specific styles ─────────────────────────────────── */
+
+    /* Stats row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      background: var(--bg-surface);
-    }
-
-    .no-report {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1rem;
-      height: 400px;
-      color: var(--text-muted);
+      padding: 1.25rem 1rem;
       text-align: center;
     }
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+      margin-bottom: 0.375rem;
+    }
+    .stat-value.green  { color: var(--success); }
+    .stat-value.yellow { color: #f59e0b; }
+    .stat-value.red    { color: var(--danger); }
+    .stat-value.blue   { color: var(--primary); }
+    .stat-label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
 
-    .no-report-icon { font-size: 4rem; opacity: 0.4; }
-    .no-report h2 { color: var(--text-secondary); }
-    .no-report p { font-size: 0.875rem; }
+    /* Bar chart */
+    .chart-section {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .chart-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1.25rem;
+    }
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.625rem;
+    }
+    .bar-label {
+      width: 110px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .bar-track {
+      flex: 1;
+      height: 20px;
+      background: var(--bg-elevated);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.6s ease;
+      min-width: 4px;
+    }
+    .bar-count {
+      width: 32px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
 
+    /* Filters row */
+    .filters-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+      align-items: center;
+    }
+    .filter-btn {
+      padding: 0.35rem 0.875rem;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-btn:hover   { border-color: var(--primary); color: var(--primary); }
+    .filter-btn.active  { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    /* Job cards grid */
+    .jobs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1rem;
+    }
+
+    .job-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .job-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+
+    .job-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .job-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      line-height: 1.35;
+    }
+    .job-company {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin-top: 0.2rem;
+    }
+    .job-location {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 0.125rem;
+    }
+
+    .score-badge {
+      flex-shrink: 0;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--radius);
+      background: rgba(99,102,241,0.15);
+      color: var(--primary);
+    }
+    .score-badge.high   { background: rgba(34,197,94,0.15); color: var(--success); }
+    .score-badge.medium { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .score-badge.low    { background: rgba(239,68,68,0.1);  color: var(--danger); }
+
+    .job-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-top: 0.875rem;
+      flex-wrap: wrap;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.73rem;
+      font-weight: 600;
+      padding: 0.25rem 0.625rem;
+      border-radius: 99px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .status-applied         { background: rgba(34,197,94,0.15); color: var(--success); }
+    .status-skipped         { background: rgba(245,158,11,0.1); color: #f59e0b; }
+    .status-failed          { background: rgba(239,68,68,0.12); color: var(--danger); }
+    .status-already_applied { background: rgba(99,102,241,0.15); color: var(--primary); }
+    .status-easy_apply_not_available { background: var(--bg-elevated); color: var(--text-muted); }
+
+    .platform-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .plat-linkedin     { background: #0077b510; color: #0077b5; }
+    .plat-indeed       { background: #00339910; color: #003399; }
+    .plat-computrabajo { background: #e8301010; color: #e83010; }
+    .plat-bumeran      { background: #ff640010; color: #ff6400; }
+    .plat-getonboard   { background: #00c2a810; color: #00c2a8; }
+    .plat-infojobs     { background: #1b5ea710; color: #1b5ea7; }
+    .plat-greenhouse   { background: #3d997010; color: #3d9970; }
+
+    .job-link {
+      font-size: 0.75rem;
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .job-link:hover { text-decoration: underline; }
+
+    .btn-apply {
+      display: inline-block;
+      padding: 0.35rem 0.85rem;
+      border-radius: 6px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .btn-apply:hover { opacity: 0.85; }
+
+    .status-easy_apply_not_available { background: #6366f115; color: #818cf8; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+    }
+    .empty-state-icon { font-size: 3rem; opacity: 0.4; margin-bottom: 0.75rem; }
+
+    /* Back button */
     .btn-back {
       display: inline-flex;
       align-items: center;
@@ -44,6 +254,16 @@
       transition: all var(--transition);
     }
     .btn-back:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* Section heading */
+    .section-heading {
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -55,62 +275,69 @@
       <div class="logo-icon">🤖</div>
       <span class="logo-text">Job Agent</span>
     </a>
-    <a href="index.html" class="btn-back" style="margin-left:auto">← Back to Configuration</a>
+    <a href="index.html" class="btn-back" style="margin-left:auto">← New Search</a>
   </header>
 
   <main class="main-content">
     <h1 class="page-title">Session <span>Report</span></h1>
-    <p class="page-description">Results from the last automated job application session.</p>
+    <p class="page-description" id="report-meta">Loading results...</p>
 
-    <div id="report-container">
-      <!-- Populated by JS -->
+    <!-- Stats -->
+    <div class="stats-row" id="stats-row"></div>
+
+    <!-- Platform chart -->
+    <div class="chart-section" id="platform-chart" style="display:none">
+      <div class="chart-title">Jobs found by platform</div>
+      <div id="platform-bars"></div>
     </div>
+
+    <!-- Method chart -->
+    <div class="chart-section" id="method-chart" style="display:none">
+      <div class="chart-title">Applications by method</div>
+      <div id="method-bars"></div>
+    </div>
+
+    <!-- Status filters -->
+    <div class="filters-row" id="filters-row" style="display:none">
+      <span style="font-size:0.8rem;color:var(--text-muted);margin-right:0.25rem">Estado:</span>
+      <button class="filter-btn active" data-filter="all">Todas</button>
+      <button class="filter-btn" data-filter="easy_apply_not_available">🔗 Aplica tú</button>
+      <button class="filter-btn" data-filter="applied">✅ Aplicadas</button>
+      <button class="filter-btn" data-filter="skipped_low_score">⏭ Bajo score</button>
+      <button class="filter-btn" data-filter="failed">❌ Fallidas</button>
+    </div>
+
+    <!-- Method filters (shown only when ATS/email applications exist) -->
+    <div class="filters-row" id="method-filters-row" style="display:none">
+      <span style="font-size:0.8rem;color:var(--text-muted);margin-right:0.25rem">Método:</span>
+      <button class="filter-btn active" data-method-filter="all">Todos</button>
+      <button class="filter-btn" data-method-filter="greenhouse_api">🌱 Greenhouse</button>
+      <button class="filter-btn" data-method-filter="lever_api">⚡ Lever</button>
+      <button class="filter-btn" data-method-filter="email">📧 Email</button>
+      <button class="filter-btn" data-method-filter="linkedin_easy_apply">LinkedIn Easy Apply</button>
+    </div>
+
+    <!-- Job cards -->
+    <div class="jobs-grid" id="jobs-grid"></div>
+
+    <!-- Empty/error state -->
+    <div id="empty-state" class="empty-state" style="display:none">
+      <div class="empty-state-icon">📊</div>
+      <p id="empty-msg">No report available yet.</p>
+      <a href="index.html" class="btn-back" style="margin-top:0.75rem;display:inline-flex">
+        ← Configure &amp; Run Agent
+      </a>
+    </div>
+
   </main>
 
   <footer class="page-footer">
-    <p>Job Agent · ⚠️ Use responsibly. Respect LinkedIn's Terms of Service.</p>
+    <p>Job Agent · ⚠️ Use responsibly. Respect the Terms of Service of each platform.</p>
   </footer>
 </div>
 
 <div id="toast-container" class="toast-container"></div>
 
-<script>
-  async function loadReport() {
-    const container = document.getElementById('report-container');
-
-    try {
-      const res = await fetch('http://localhost:3000/api/jobs/report');
-      const data = await res.json();
-
-      if (data.available) {
-        // Embed the HTML report in an iframe
-        const iframe = document.createElement('iframe');
-        iframe.className = 'report-frame';
-        iframe.src = 'http://localhost:3000/output/report.html';
-        iframe.title = 'Session Report';
-        container.appendChild(iframe);
-      } else {
-        showNoReport('No report generated yet', 'Run the agent first: npm start');
-      }
-    } catch {
-      showNoReport('API server offline', 'Start the server first: npm run dev -w packages/api');
-    }
-  }
-
-  function showNoReport(title, msg) {
-    const container = document.getElementById('report-container');
-    container.innerHTML = `
-      <div class="no-report">
-        <div class="no-report-icon">📊</div>
-        <h2>${title}</h2>
-        <p>${msg}</p>
-        <a href="index.html" class="btn-back">← Configure &amp; Run Agent</a>
-      </div>
-    `;
-  }
-
-  document.addEventListener('DOMContentLoaded', loadReport);
-</script>
-
+<script src="assets/report.js"></script>
 </body>
 </html>

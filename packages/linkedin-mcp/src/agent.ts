@@ -126,7 +126,7 @@ export async function runLinkedInAgent(
         `Applying: ${job.title} @ ${job.company} (score: ${job.compatibilityScore})`
       );
 
-      const record = await easyApply(page, job, profile.phone);
+      const record = await easyApply(page, job, profile.phone, config.applicationDefaults);
       applications.push(record);
 
       if (record.status === 'applied') {
