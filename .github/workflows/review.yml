@@ -1,0 +1,127 @@
+name: Automated PR Review (Haiku)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  # ── 1. Commit message review ────────────────────────────────────────────────
+  review-commits:
+    name: Commit messages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get commit messages in this PR
+        id: commits
+        run: |
+          MESSAGES=$(git log origin/${{ github.base_ref }}..HEAD --pretty=format:"- %s" | head -20)
+          echo "messages<<EOF" >> $GITHUB_OUTPUT
+          echo "$MESSAGES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          direct_prompt: |
+            Review the following git commit messages from a pull request in the
+            "job-agent" TypeScript monorepo. Evaluate them against Conventional
+            Commits convention (feat/fix/ci/docs/refactor/test/chore).
+
+            Commit messages:
+            ${{ steps.commits.outputs.messages }}
+
+            Check for:
+            1. Correct type prefix (feat, fix, ci, docs, refactor, test, chore)
+            2. Imperative mood in the subject line
+            3. Subject line under 72 characters
+            4. No trailing period
+            5. Body explains WHY, not just WHAT (when present)
+
+            Reply with a concise markdown summary:
+            - ✔ if all messages are compliant
+            - ✖ listing each non-compliant message with a suggested fix
+            Keep the response under 300 words.
+        env:
+          ANTHROPIC_MODEL: claude-haiku-4-5-20251001
+
+  # ── 2. Coding standards review ─────────────────────────────────────────────
+  review-standards:
+    name: Coding standards
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          direct_prompt: |
+            Review the TypeScript files changed in this PR against the project's
+            coding standards (defined in CLAUDE.md).
+
+            Check ONLY for these violations:
+            1. `any` type used instead of `unknown` + type guard
+            2. Types defined inline instead of in packages/core/src/types/
+            3. `console.log` used instead of `chalk`
+            4. LinkedIn CSS selectors hardcoded outside selectors.constants.ts
+            5. Async functions missing typed try/catch
+            6. Public functions without JSDoc comment
+            7. Non-English variable names or comments
+
+            For each violation found, report:
+              - File path and line number
+              - The rule broken
+              - A one-line fix suggestion
+
+            If no violations are found, reply: "✔ All coding standards met."
+            Keep the response under 400 words.
+        env:
+          ANTHROPIC_MODEL: claude-haiku-4-5-20251001
+
+  # ── 3. Security review ──────────────────────────────────────────────────────
+  review-security:
+    name: Security checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          direct_prompt: |
+            Perform a security review of the files changed in this PR.
+            This is a LinkedIn automation tool that handles credentials and
+            browser sessions.
+
+            Check for:
+            1. Hardcoded credentials, API keys, or passwords (should use .env)
+            2. Sensitive data written to non-gitignored files
+            3. Command injection risk in shell/exec calls
+            4. Unsanitized user input passed to Playwright page.evaluate()
+            5. LinkedIn session tokens or cookies logged or stored insecurely
+            6. Rate limiting bypassed or removed
+            7. Dependencies with known CVEs added to package.json
+
+            For each issue found, report:
+              - Severity: CRITICAL / HIGH / MEDIUM / LOW
+              - File and line
+              - Description and recommended fix
+
+            If no issues are found, reply: "✔ No security issues detected."
+            Keep the response under 400 words.
+        env:
+          ANTHROPIC_MODEL: claude-haiku-4-5-20251001
