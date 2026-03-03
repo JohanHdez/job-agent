@@ -12,6 +12,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,8 +29,7 @@ jobs:
       - uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: "--model claude-haiku-4-5-20251001"
-          prompt: |
+          direct_prompt: |
             Review the following git commit messages from a pull request in the
             "job-agent" TypeScript monorepo. Evaluate them against Conventional
             Commits convention (feat/fix/ci/docs/refactor/test/chore).
@@ -48,6 +48,8 @@ jobs:
             - ✔ if all messages are compliant
             - ✖ listing each non-compliant message with a suggested fix
             Keep the response under 300 words.
+        env:
+          ANTHROPIC_MODEL: claude-haiku-4-5-20251001
 
   # ── 2. Coding standards review ─────────────────────────────────────────────
   review-standards:
@@ -56,14 +58,14 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
       - uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: "--model claude-haiku-4-5-20251001"
-          prompt: |
+          direct_prompt: |
             Review the TypeScript files changed in this PR against the project's
             coding standards (defined in CLAUDE.md).
 
@@ -83,6 +85,8 @@ jobs:
 
             If no violations are found, reply: "✔ All coding standards met."
             Keep the response under 400 words.
+        env:
+          ANTHROPIC_MODEL: claude-haiku-4-5-20251001
 
   # ── 3. Security review ──────────────────────────────────────────────────────
   review-security:
@@ -91,14 +95,14 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
       - uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: "--model claude-haiku-4-5-20251001"
-          prompt: |
+          direct_prompt: |
             Perform a security review of the files changed in this PR.
             This is a LinkedIn automation tool that handles credentials and
             browser sessions.
@@ -119,3 +123,5 @@ jobs:
 
             If no issues are found, reply: "✔ No security issues detected."
             Keep the response under 400 words.
+        env:
+          ANTHROPIC_MODEL: claude-haiku-4-5-20251001
