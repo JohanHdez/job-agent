@@ -13,13 +13,20 @@ import path from 'path';
 import type { ProfessionalProfile } from '@job-agent/core';
 import { parseCV } from './parsers/pdf.parser.js';
 import { buildProfile } from './extractors/profile.builder.js';
+import { extractProfileWithClaude } from './extractors/claude.extractor.js';
 import { logger } from './utils/logger.js';
 
 export { parseCV } from './parsers/pdf.parser.js';
 export { buildProfile } from './extractors/profile.builder.js';
+export { extractProfileWithClaude } from './extractors/claude.extractor.js';
 
 /**
  * Full pipeline: parse a CV file and return the professional profile.
+ *
+ * Extraction strategy (in order):
+ *   1. Claude API (requires ANTHROPIC_API_KEY) — most accurate
+ *   2. Heuristic regex parser — fallback when API key is absent or call fails
+ *
  * @param cvPath - Path to the PDF or DOCX file.
  * @param outputPath - Optional path to save the profile as JSON.
  * @returns The extracted ProfessionalProfile.
@@ -31,7 +38,16 @@ export async function runCvParser(
   logger.info(`Starting CV parser for: ${cvPath}`);
 
   const rawData = await parseCV(cvPath);
-  const profile = buildProfile(rawData);
+
+  // 1. Try Claude API extraction first
+  const claudeProfile = await extractProfileWithClaude(rawData.text);
+
+  // 2. Fall back to heuristic extraction if Claude is unavailable or fails
+  const profile: ProfessionalProfile = claudeProfile ?? buildProfile(rawData);
+
+  if (!claudeProfile) {
+    logger.info('Using heuristic extraction (Claude API unavailable or failed)');
+  }
 
   if (outputPath) {
     const dir = path.dirname(outputPath);
