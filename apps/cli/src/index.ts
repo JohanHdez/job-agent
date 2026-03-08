@@ -22,12 +22,12 @@ const __dirname = path.dirname(__filename);
 const PORT = parseInt(process.env['API_PORT'] ?? '3000', 10);
 const API_URL = `http://localhost:${PORT}`;
 
-console.log(chalk.bold.hex('#6366f1')('\n  🤖 Job Agent v2 — Multi-Platform Job Search\n'));
+process.stdout.write(chalk.bold.hex('#6366f1')('\n  🤖 Job Agent v2 — Multi-Platform Job Search\n') + '\n');
 
 // Resolve the built server entry point (relative to this file in dist/)
 const serverPath = path.resolve(__dirname, '../../../packages/api/dist/server.js');
 
-console.log(chalk.blue('[INFO]') + ' Starting API server...');
+process.stdout.write(chalk.blue('[INFO]') + ' Starting API server...\n');
 
 const serverProc = spawn('node', [serverPath], {
   stdio: 'inherit',
@@ -36,25 +36,25 @@ const serverProc = spawn('node', [serverPath], {
 });
 
 serverProc.on('error', (err) => {
-  console.error(chalk.red('[ERROR]') + ` Failed to start server: ${err.message}`);
-  console.error(chalk.yellow('[HINT]') + ' Run `npm run build` first to compile the project.');
+  process.stderr.write(chalk.red('[ERROR]') + ` Failed to start server: ${err.message}\n`);
+  process.stderr.write(chalk.yellow('[HINT]') + ' Run `npm run build` first to compile the project.\n');
   process.exit(1);
 });
 
 // Give the server a moment to start, then open the browser
 setTimeout(async () => {
-  console.log(chalk.green('[OK]') + ` Opening ${chalk.cyan(API_URL)} in your browser...`);
-  console.log(chalk.gray('       Upload your CV, configure search settings, select platforms,'));
-  console.log(chalk.gray('       and click "Start Search" — no terminal interaction needed.\n'));
+  process.stdout.write(chalk.green('[OK]') + ` Opening ${chalk.cyan(API_URL)} in your browser...\n`);
+  process.stdout.write(chalk.gray('       Upload your CV, configure search settings, select platforms,') + '\n');
+  process.stdout.write(chalk.gray('       and click "Start Search" — no terminal interaction needed.\n\n'));
 
   await open(API_URL).catch(() => {
-    console.log(chalk.yellow('[WARN]') + ` Could not open browser automatically. Open ${chalk.cyan(API_URL)} manually.`);
+    process.stdout.write(chalk.yellow('[WARN]') + ` Could not open browser automatically. Open ${chalk.cyan(API_URL)} manually.\n`);
   });
 }, 1_500);
 
 // Keep the process alive (the server is the main process)
 process.on('SIGINT', () => {
-  console.log(chalk.yellow('\n[WARN] Shutting down...'));
+  process.stdout.write(chalk.yellow('\n[WARN] Shutting down...\n'));
   serverProc.kill();
   process.exit(0);
 });
