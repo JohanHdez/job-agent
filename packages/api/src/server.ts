@@ -21,6 +21,7 @@ import { cvRouter } from './routes/cv.routes.js';
 import { jobsRouter } from './routes/jobs.routes.js';
 import { agentRouter } from './routes/agent.routes.js';
 import { errorMiddleware, notFoundMiddleware } from './middleware/error.middleware.js';
+import { correlationMiddleware } from './common/logger/correlation.middleware.js';
 import { logger } from './utils/logger.js';
 
 dotenv.config();
@@ -35,6 +36,8 @@ const HOST = process.env['API_HOST'] ?? 'localhost';
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
 app.use(cors({ origin: '*' }));
+// Assign a correlationId to every request (UUID v4, propagated via AsyncLocalStorage)
+app.use(correlationMiddleware);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 

@@ -1,29 +1,26 @@
 import winston from 'winston';
 import chalk from 'chalk';
 
-/**
- * Shared logger for the cv-parser package.
- * Uses chalk for colored console output and winston for file logging.
- */
+const LEVEL_COLORS: Record<string, (s: string) => string> = {
+  error: chalk.red,
+  warn: chalk.yellow,
+  info: chalk.blue,
+  debug: chalk.magenta,
+};
+
+const SERVICE = 'cv-parser';
+
+/** Structured logger for the cv-parser package. */
 export const logger = winston.createLogger({
   level: process.env['LOG_LEVEL'] ?? 'info',
   format: winston.format.combine(
-    winston.format.timestamp(),
+    winston.format.timestamp({ format: 'YYYY-MM-DDTHH:mm:ss.SSSZ' }),
     winston.format.printf(({ level, message, timestamp }) => {
-      const ts = String(timestamp);
-      switch (level) {
-        case 'info':
-          return `${chalk.gray(ts)} ${chalk.blue('[INFO]')} ${String(message)}`;
-        case 'warn':
-          return `${chalk.gray(ts)} ${chalk.yellow('[WARN]')} ${String(message)}`;
-        case 'error':
-          return `${chalk.gray(ts)} ${chalk.red('[ERROR]')} ${String(message)}`;
-        case 'debug':
-          return `${chalk.gray(ts)} ${chalk.magenta('[DEBUG]')} ${String(message)}`;
-        default:
-          return `${chalk.gray(ts)} [${level.toUpperCase()}] ${String(message)}`;
-      }
-    })
+      const ts  = chalk.gray(String(timestamp));
+      const svc = chalk.cyan(`[${SERVICE}]`);
+      const lvl = (LEVEL_COLORS[level] ?? chalk.white)(level.toUpperCase());
+      return `${ts} ${svc} ${lvl} ${String(message)}`;
+    }),
   ),
   transports: [new winston.transports.Console()],
 });
