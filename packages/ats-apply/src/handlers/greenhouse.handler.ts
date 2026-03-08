@@ -44,8 +44,8 @@ const USER_AGENT = 'Mozilla/5.0 (compatible; JobAgent/2.0; +https://github.com/j
 /** Splits a full name into first and last name parts. */
 function splitName(fullName: string): { firstName: string; lastName: string } {
   const parts = fullName.trim().split(/\s+/);
-  if (parts.length === 1) return { firstName: parts[0]!, lastName: parts[0]! };
-  const firstName = parts[0]!;
+  if (parts.length === 1) return { firstName: parts[0] ?? '', lastName: parts[0] ?? '' };
+  const firstName = parts[0] ?? '';
   const lastName  = parts.slice(1).join(' ');
   return { firstName, lastName };
 }

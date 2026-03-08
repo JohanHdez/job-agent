@@ -1,0 +1,71 @@
+name: TypeScript & Lint
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  typecheck:
+    name: tsc --noEmit (zero errors)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared types (core)
+        run: npm run build -w packages/core
+
+      - name: Typecheck — packages/core
+        run: npx tsc --noEmit -p packages/core/tsconfig.json
+
+      - name: Typecheck — packages/cv-parser
+        run: npx tsc --noEmit -p packages/cv-parser/tsconfig.json
+
+      - name: Typecheck — packages/linkedin-mcp
+        run: npx tsc --noEmit -p packages/linkedin-mcp/tsconfig.json
+
+      - name: Typecheck — packages/job-search
+        run: npx tsc --noEmit -p packages/job-search/tsconfig.json
+
+      - name: Typecheck — packages/ats-apply
+        run: npx tsc --noEmit -p packages/ats-apply/tsconfig.json
+
+      - name: Typecheck — packages/reporter
+        run: npx tsc --noEmit -p packages/reporter/tsconfig.json
+
+      - name: Typecheck — packages/api
+        run: npx tsc --noEmit -p packages/api/tsconfig.json
+
+      - name: Typecheck — apps/cli
+        run: npx tsc --noEmit -p apps/cli/tsconfig.json
+
+  lint:
+    name: ESLint (no-explicit-any)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared types (core)
+        run: npm run build -w packages/core
+
+      - name: Lint
+        run: npm run lint

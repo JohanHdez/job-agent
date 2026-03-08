@@ -39,8 +39,8 @@ export function detectAts(url: string): AtsMatch | null {
     const m = url.match(pattern);
     if (m) {
       // embed URLs have swapped capture groups depending on param order — normalise
-      const company = m[1]!;
-      const jobId   = m[2]!;
+      const company = m[1] ?? '';
+      const jobId   = m[2] ?? '';
       if (/^\d+$/.test(jobId)) {
         return { type: 'greenhouse', company, jobId };
       }
@@ -54,7 +54,7 @@ export function detectAts(url: string): AtsMatch | null {
   // Lever
   const lever = url.match(LEVER_PATTERN);
   if (lever) {
-    return { type: 'lever', company: lever[1]!, jobId: lever[2]! };
+    return { type: 'lever', company: lever[1] ?? '', jobId: lever[2] ?? '' };
   }
 
   return null;

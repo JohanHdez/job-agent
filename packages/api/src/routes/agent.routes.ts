@@ -85,7 +85,7 @@ agentRouter.post('/run', async (req: Request, res: Response) => {
   session = { sessionId, running: true, events: [], sseClients: [] };
 
   // Start pipeline asynchronously (fire-and-forget)
-  runPipeline(session).catch((err) => {
+  runPipeline(session).catch((err: unknown) => {
     logger.error(`Pipeline error: ${err instanceof Error ? err.message : String(err)}`);
   });
 
@@ -269,7 +269,7 @@ async function runPipeline(state: SessionState): Promise<void> {
         return;
       }
 
-      cvPath = path.join(CV_DIR, cvFiles[0]!);
+      cvPath = path.join(CV_DIR, cvFiles[0] ?? '');
       emit(state, { step: 2, total: TOTAL_STEPS, message: `CV found: ${cvFiles[0]}`, level: 'success' });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

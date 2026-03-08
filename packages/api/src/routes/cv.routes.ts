@@ -67,7 +67,7 @@ cvRouter.get('/', async (_req: Request, res: Response) => {
       return;
     }
 
-    const cvFile = cvFiles[0]!;
+    const cvFile = cvFiles[0] ?? '';
     const stat = await fs.stat(path.join(CV_DIR, cvFile));
 
     res.json({
