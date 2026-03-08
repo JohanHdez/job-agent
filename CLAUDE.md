@@ -49,6 +49,15 @@ job-agent/
 │       ├── backend.md            (/backend   — MCP server, API, cv-parser)
 │       └── database.md           (/database  — schemas, config.yaml, .gitignore)
 │
+├── .claude/
+│   └── commands/                 (agent skill definitions — slash commands)
+│       ├── director.md           (/director  — team lead, task coordination)
+│       ├── architect.md          (/architect — monorepo, TypeScript, interfaces)
+│       ├── designer.md           (/designer  — dark theme UI, SaaS look)
+│       ├── frontend.md           (/frontend  — form wiring, CLI orchestrator)
+│       ├── backend.md            (/backend   — MCP server, API, cv-parser)
+│       └── database.md           (/database  — schemas, config.yaml, .gitignore)
+│
 ├── packages/
 │   ├── core/                     (@job-agent/core) — shared types only
 │   │   └── src/types/
@@ -282,6 +291,33 @@ feature/*   ← new features branched from develop
 hotfix/*    ← urgent fixes branched from main, merged to main + develop
 release/*   ← release prep branched from develop, merged to main + develop
 ```
+
+## Team Agent Skills (Slash Commands)
+
+Skills live in `.claude/commands/`. Each file defines a specialized role with full project
+context pre-loaded. Invoke them as slash commands followed by your instruction:
+
+```
+/director  build the full monorepo skeleton and assign tasks to the team
+/architect create packages/core with all shared TypeScript interfaces
+/designer  implement index.html with dark theme and tag-chip inputs
+/frontend  wire app.js form submission and implement apps/cli/src/index.ts
+/backend   implement the MCP server with Easy Apply and bilingual selectors
+/database  set up config.yaml.example, .env.example, and JSON schemas
+```
+
+| Command       | Role                    | Owns                                          |
+|---------------|-------------------------|-----------------------------------------------|
+| `/director`  | Team lead               | Task creation, coordination, blockers         |
+| `/architect` | Technical architect     | Monorepo, tsconfig, packages/core types       |
+| `/designer`  | UX/UI designer          | apps/ui HTML/CSS/JS, dark SaaS theme          |
+| `/frontend`  | Frontend developer      | app.js wiring, apps/cli orchestrator          |
+| `/backend`   | Backend developer       | linkedin-mcp, packages/api, cv-parser         |
+| `/database`  | Data specialist         | config.yaml, .env, JSON schemas, .gitignore   |
+
+Each skill file receives `$ARGUMENTS` (your instruction after the slash command) and includes
+all relevant coding standards, type contracts, and bilingual selector rules so the agent can
+work autonomously without needing additional context.
 
 ## Team Agent Skills (Slash Commands)
 
