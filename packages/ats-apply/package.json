@@ -1,0 +1,31 @@
+{
+  "name": "@job-agent/ats-apply",
+  "version": "1.0.0",
+  "description": "Automated job application via ATS public APIs (Greenhouse, Lever)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types":  "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev":   "tsc -p tsconfig.json --watch"
+  },
+  "dependencies": {
+    "@job-agent/core": "*",
+    "chalk":      "^5.3.0",
+    "nodemailer": "^6.9.0",
+    "playwright": "^1.44.1",
+    "winston":    "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/node":       "^20.12.12",
+    "@types/nodemailer": "^6.4.14",
+    "rimraf":            "^5.0.5",
+    "typescript":        "^5.4.5"
+  }
+}

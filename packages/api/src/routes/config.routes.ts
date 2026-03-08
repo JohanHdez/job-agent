@@ -38,9 +38,9 @@ configRouter.post('/', async (req: Request, res: Response) => {
 
   const config = body as AppConfig;
 
-  // Basic validation
-  if (!Array.isArray(config.search?.keywords) || config.search.keywords.length === 0) {
-    throw new ApiError(400, 'search.keywords must be a non-empty array');
+  // Basic validation — keywords are optional (auto-derived from CV profile)
+  if (!Array.isArray(config.search?.keywords)) {
+    throw new ApiError(400, 'search.keywords must be an array');
   }
 
   if (typeof config.matching?.minScoreToApply !== 'number') {

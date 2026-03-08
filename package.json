@@ -10,8 +10,9 @@
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
     "start": "npm run build && node apps/cli/dist/index.js",
-    "build": "npm run build -w packages/core && npm run build -w packages/cv-parser && npm run build -w packages/linkedin-mcp && npm run build -w packages/api && npm run build -w packages/reporter && npm run build -w apps/cli",
-    "dev": "concurrently \"npm run dev -w packages/core\" \"npm run dev -w packages/cv-parser\" \"npm run dev -w packages/linkedin-mcp\" \"npm run dev -w packages/api\"",
+    "install:browsers": "node node_modules/playwright/cli.js install chromium chromium-headless-shell",
+    "build": "npm run build -w packages/core && npm run build -w packages/cv-parser && npm run build -w packages/linkedin-mcp && npm run build -w packages/job-search && npm run build -w packages/ats-apply && npm run build -w packages/reporter && npm run build -w packages/api && npm run build -w apps/cli",
+    "dev": "concurrently \"npm run dev -w packages/core\" \"npm run dev -w packages/cv-parser\" \"npm run dev -w packages/linkedin-mcp\" \"npm run dev -w packages/job-search\" \"npm run dev -w packages/api\"",
     "lint": "eslint packages/**/src/**/*.ts apps/**/src/**/*.ts",
     "clean": "rimraf packages/*/dist apps/*/dist packages/*/tsconfig.tsbuildinfo"
   },

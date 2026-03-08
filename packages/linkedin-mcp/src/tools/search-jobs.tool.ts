@@ -220,6 +220,7 @@ export async function searchJobs(
         applyUrl: raw.applyUrl,
         hasEasyApply: raw.hasEasyApply,
         compatibilityScore: 0,
+        platform: 'linkedin',
       });
 
       logger.debug(`Found: ${raw.title} @ ${raw.company} [${raw.id}]`);

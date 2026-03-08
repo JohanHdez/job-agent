@@ -1,5 +1,5 @@
 import type { Page } from 'playwright';
-import type { JobListing, ApplicationRecord } from '@job-agent/core';
+import type { AppConfig, JobListing, ApplicationRecord } from '@job-agent/core';
 import { SELECTORS, LINKEDIN_URLS } from '../browser/selectors.constants.js';
 import { APPLY_DELAY } from '../utils/delay.js';
 import { logger } from '../utils/logger.js';
@@ -7,27 +7,44 @@ import { logger } from '../utils/logger.js';
 /** Maximum number of "Next" button clicks to prevent infinite loops */
 const MAX_STEPS = 10;
 
+type AppDefaults = AppConfig['applicationDefaults'];
+
 /**
- * Attempts to fill text inputs in the Easy Apply form with provided answers.
+ * Attempts to fill text inputs in the Easy Apply form.
+ * Handles phone, salary, GitHub, portfolio, notice period, and years-of-experience.
  * Skips fields that are already filled.
- * Handles both English and Spanish aria-labels.
  */
-async function fillTextInputs(page: Page, phoneNumber?: string): Promise<void> {
+async function fillTextInputs(
+  page: Page,
+  phoneNumber?: string,
+  defaults?: AppDefaults,
+): Promise<void> {
   const textInputs = page.locator(SELECTORS.EASY_APPLY_TEXT_INPUT);
   const count = await textInputs.count();
 
   for (let i = 0; i < count; i++) {
     const input = textInputs.nth(i);
-    const label = await input.getAttribute('aria-label') ?? '';
-    const placeholder = await input.getAttribute('placeholder') ?? '';
-    const combined = `${label} ${placeholder}`;
-    const value = await input.inputValue().catch(() => '');
+    const ariaLabel   = await input.getAttribute('aria-label').catch(() => '') ?? '';
+    const placeholder = await input.getAttribute('placeholder').catch(() => '') ?? '';
+    const combined    = `${ariaLabel} ${placeholder}`.toLowerCase();
+    const value       = await input.inputValue().catch(() => '');
 
     if (value.length > 0) continue; // already filled
 
-    // Matches "phone", "tel", "mobile" (EN) and "teléfono", "número" (ES)
     if (/phone|tel|mobile|teléfono|telefono|número|numero/i.test(combined) && phoneNumber) {
       await input.fill(phoneNumber);
+    } else if (defaults) {
+      if (/salary|compensation|pay|wage|sueldo|salario/i.test(combined) && defaults.salaryExpectation) {
+        await input.fill(defaults.salaryExpectation);
+      } else if (/github/i.test(combined) && defaults.githubUrl) {
+        await input.fill(defaults.githubUrl);
+      } else if (/portfolio|personal.*site|website/i.test(combined) && defaults.portfolioUrl) {
+        await input.fill(defaults.portfolioUrl);
+      } else if (/notice|when.*start|available|start.*date/i.test(combined) && defaults.availableFrom) {
+        await input.fill(defaults.availableFrom);
+      } else if (/year.*exp|exp.*year|how.*long/i.test(combined) && defaults.yearsOfExperience !== undefined) {
+        await input.fill(String(defaults.yearsOfExperience));
+      }
     }
   }
 }
@@ -35,17 +52,17 @@ async function fillTextInputs(page: Page, phoneNumber?: string): Promise<void> {
 /**
  * Handles radio button groups in the Easy Apply form.
  *
- * - Resume step: if the PDF resume is available, selects it (first radio).
- * - Work permit / Yes-No questions: if no option is selected, picks the first one.
- *   (LinkedIn pre-fills "Yes" for most users, so this is a safety fallback.)
+ * When `defaults` is provided, reads the surrounding question text for each
+ * radio group and selects the correct option (Yes/No) based on the user's
+ * configured answers for work authorization, sponsorship, and relocation.
+ *
+ * Falls back to clicking the first option for unrecognised questions.
  */
-async function fillRadioButtons(page: Page): Promise<void> {
-  // Find all radio button groups (unique names)
+async function fillRadioButtons(page: Page, defaults?: AppDefaults): Promise<void> {
   const radios = page.locator('input[type="radio"]');
-  const count = await radios.count();
+  const count  = await radios.count();
   if (count === 0) return;
 
-  // Collect unique group names
   const names = new Set<string>();
   for (let i = 0; i < count; i++) {
     const name = await radios.nth(i).getAttribute('name').catch(() => null);
@@ -53,22 +70,78 @@ async function fillRadioButtons(page: Page): Promise<void> {
   }
 
   for (const name of names) {
-    const groupRadios = page.locator(`input[type="radio"][name="${name}"]`);
-    const groupCount = await groupRadios.count();
+    const safeAttr   = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const groupRadios = page.locator(`input[type="radio"][name="${safeAttr}"]`);
+    const groupCount  = await groupRadios.count();
     if (groupCount === 0) continue;
 
-    // Check if any radio in this group is already selected
+    // Skip if already answered
     let anyChecked = false;
     for (let i = 0; i < groupCount; i++) {
-      const checked = await groupRadios.nth(i).isChecked().catch(() => false);
-      if (checked) { anyChecked = true; break; }
+      if (await groupRadios.nth(i).isChecked().catch(() => false)) {
+        anyChecked = true;
+        break;
+      }
+    }
+    if (anyChecked) continue;
+
+    // Determine what answer this question requires
+    let targetLabel: string | null = null;
+
+    if (defaults) {
+      // Read the question text from the nearest legend, h3, or label-like element
+      const questionText: string = await groupRadios.first().evaluate((el) => {
+        let node: Element | null = el.parentElement;
+        for (let i = 0; i < 6 && node; i++) {
+          const legend = node.querySelector('legend');
+          const span   = node.querySelector('span[class*="label"], span[class*="title"], .fb-form-element__label');
+          const h      = node.querySelector('h3, h4');
+          const lbl    = node.querySelector('label:not([for])');
+          const text   = (legend ?? span ?? h ?? lbl)?.textContent?.trim() ?? '';
+          if (text.length > 4) return text.slice(0, 300);
+          node = node.parentElement;
+        }
+        return '';
+      }).catch(() => '');
+
+      const q = questionText.toLowerCase();
+
+      if (/author|eligible|legal.*work|right.*work|permit.*work/i.test(q)) {
+        targetLabel = defaults.authorizedToWork !== false ? 'Yes' : 'No';
+      } else if (/sponsor|visa\s*status|visa\s*support|immigration/i.test(q)) {
+        targetLabel = defaults.requiresSponsorship ? 'Yes' : 'No';
+      } else if (/relocat/i.test(q)) {
+        targetLabel = defaults.willingToRelocate ? 'Yes' : 'No';
+      }
     }
 
-    // If nothing is checked, click the first option (safe default)
-    if (!anyChecked) {
+    if (targetLabel) {
+      // Try to match option label text exactly (case-insensitive)
+      let clicked = false;
+      for (let i = 0; i < groupCount; i++) {
+        const radio    = groupRadios.nth(i);
+        const id       = await radio.getAttribute('id').catch(() => null);
+        const labelTxt = id
+          ? (await page.locator(`label[for="${id}"]`).textContent().catch(() => '')) ?? ''
+          : (await radio.getAttribute('value').catch(() => '')) ?? '';
+
+        if (labelTxt.trim().toLowerCase() === targetLabel.toLowerCase()) {
+          await radio.click().catch(() => {});
+          clicked = true;
+          break;
+        }
+      }
+      if (!clicked) {
+        // Positional fallback: "No" → last option, "Yes" → first option
+        await (targetLabel === 'No' ? groupRadios.last() : groupRadios.first())
+          .click().catch(() => {});
+      }
+    } else {
+      // No recognized question — click first option (safe default)
       await groupRadios.first().click().catch(() => {});
-      await new Promise((r) => setTimeout(r, 300));
     }
+
+    await new Promise((r) => setTimeout(r, 300));
   }
 }
 
@@ -129,7 +202,8 @@ async function advanceStep(page: Page): Promise<'next' | 'review' | 'submit' | '
 export async function easyApply(
   page: Page,
   job: JobListing,
-  phoneNumber?: string
+  phoneNumber?: string,
+  defaults?: AppDefaults,
 ): Promise<ApplicationRecord> {
   const appliedAt = new Date().toISOString();
 
@@ -144,7 +218,7 @@ export async function easyApply(
   try {
     const url = LINKEDIN_URLS.JOB_VIEW(job.id);
     logger.info(`Navigating to job for Easy Apply: ${job.title} [${job.id}]`);
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
 
     // Check if already applied (EN: "Applied", ES: "Solicitado")
     const alreadyApplied = await page
@@ -174,7 +248,8 @@ export async function easyApply(
     let lastAction: string = '';
 
     while (step < MAX_STEPS) {
-      await fillTextInputs(page, phoneNumber);
+      await fillTextInputs(page, phoneNumber, defaults);
+      await fillRadioButtons(page, defaults);
 
       const action = await advanceStep(page);
       logger.debug(`Easy Apply step ${step + 1}: action=${action}`);

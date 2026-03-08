@@ -146,8 +146,11 @@ SECRET_PATTERNS=(
 )
 SECRET_ERRORS=0
 
+# Only scan source files — skip docs, examples, and the hook itself
+STAGED_SOURCE=$(echo "$STAGED_ALL" | grep -v -E '\.(md|example|txt)$' | grep -v '\.githooks/' || true)
+
 for pattern in "${SECRET_PATTERNS[@]}"; do
-  hits=$(echo "$STAGED_ALL" | xargs -I{} git diff --cached {} 2>/dev/null \
+  hits=$(echo "$STAGED_SOURCE" | xargs -I{} git diff --cached {} 2>/dev/null \
     | grep '^+' | grep -v '^+++' \
     | grep -E "$pattern" \
     | grep -v '^\+\s*//' || true)
