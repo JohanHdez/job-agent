@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+# =============================================================================
+# pre-commit hook — Job Agent coding standards enforcement
+# Runs automatically on every `git commit`.
+# Install: git config core.hooksPath .githooks  (done by `npm install`)
+# =============================================================================
+
+set -euo pipefail
+
+# ── ANSI colors (no external deps needed) ─────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+PASS="${GREEN}✔${RESET}"
+FAIL="${RED}✖${RESET}"
+WARN="${YELLOW}⚠${RESET}"
+INFO="${BLUE}ℹ${RESET}"
+
+ERRORS=0
+
+log_header() { echo -e "\n${BOLD}${BLUE}◆ $1${RESET}"; }
+log_pass()   { echo -e "  ${PASS}  $1"; }
+log_fail()   { echo -e "  ${FAIL}  ${RED}$1${RESET}"; ERRORS=$((ERRORS + 1)); }
+log_warn()   { echo -e "  ${WARN}  ${YELLOW}$1${RESET}"; }
+log_info()   { echo -e "  ${INFO}  $1"; }
+
+echo -e "\n${BOLD}════════════════════════════════════════${RESET}"
+echo -e "${BOLD}   Job Agent — Pre-commit Review        ${RESET}"
+echo -e "${BOLD}════════════════════════════════════════${RESET}"
+
+# ── Collect staged files ───────────────────────────────────────────────────────
+STAGED_ALL=$(git diff --cached --name-only --diff-filter=ACM)
+STAGED_TS=$(echo "$STAGED_ALL" | grep -E '\.ts$' || true)
+STAGED_COUNT=$(echo "$STAGED_ALL" | grep -c . || true)
+
+log_info "Staged files: ${STAGED_COUNT}"
+
+# =============================================================================
+# CHECK 1 — Forbidden files (personal data must never be committed)
+# =============================================================================
+log_header "Check 1/6 — Forbidden files"
+
+FORBIDDEN_PATTERNS=("^cv/" "^output/" "^\.env$" "^config\.yaml$" "^.*\.pdf$")
+FOUND_FORBIDDEN=0
+
+for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
+  matches=$(echo "$STAGED_ALL" | grep -E "$pattern" || true)
+  if [[ -n "$matches" ]]; then
+    while IFS= read -r file; do
+      log_fail "Forbidden file staged: $file"
+      FOUND_FORBIDDEN=$((FOUND_FORBIDDEN + 1))
+    done <<< "$matches"
+  fi
+done
+
+if [[ $FOUND_FORBIDDEN -eq 0 ]]; then
+  log_pass "No forbidden files staged"
+fi
+
+# =============================================================================
+# CHECK 2 — No TypeScript `any`
+# =============================================================================
+log_header "Check 2/6 — No TypeScript 'any'"
+
+if [[ -z "$STAGED_TS" ]]; then
+  log_info "No TypeScript files staged — skipped"
+else
+  ANY_ERRORS=0
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    # Allow: comments, imports from @types, "unknown" explanatory strings
+    hits=$(git diff --cached "$file" | grep '^+' | grep -v '^+++' \
+      | grep -E '(: any\b|<any>|as any\b)' \
+      | grep -v '^\+\s*//' || true)
+    if [[ -n "$hits" ]]; then
+      log_fail "$file — uses 'any' (use 'unknown' + type guard instead)"
+      echo "$hits" | head -3 | while IFS= read -r line; do
+        echo -e "       ${RED}${line}${RESET}"
+      done
+      ANY_ERRORS=$((ANY_ERRORS + 1))
+    fi
+  done <<< "$STAGED_TS"
+  [[ $ANY_ERRORS -eq 0 ]] && log_pass "No 'any' types found"
+fi
+
+# =============================================================================
+# CHECK 3 — No console.log (use chalk instead)
+# =============================================================================
+log_header "Check 3/6 — No console.log"
+
+if [[ -z "$STAGED_TS" ]]; then
+  log_info "No TypeScript files staged — skipped"
+else
+  LOG_ERRORS=0
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    hits=$(git diff --cached "$file" | grep '^+' | grep -v '^+++' \
+      | grep -E 'console\.(log|warn|error|info)\s*\(' \
+      | grep -v '^\+\s*//' || true)
+    if [[ -n "$hits" ]]; then
+      log_fail "$file — uses console.log (use chalk instead)"
+      LOG_ERRORS=$((LOG_ERRORS + 1))
+    fi
+  done <<< "$STAGED_TS"
+  [[ $LOG_ERRORS -eq 0 ]] && log_pass "No console.log calls found"
+fi
+
+# =============================================================================
+# CHECK 4 — No inline LinkedIn selectors outside selectors.constants.ts
+# =============================================================================
+log_header "Check 4/6 — Selectors only in selectors.constants.ts"
+
+if [[ -z "$STAGED_TS" ]]; then
+  log_info "No TypeScript files staged — skipped"
+else
+  SEL_ERRORS=0
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    # Skip the constants file itself
+    [[ "$file" == *"selectors.constants.ts" ]] && continue
+    hits=$(git diff --cached "$file" | grep '^+' | grep -v '^+++' \
+      | grep -E '(aria-label|\.job-card|\.jobs-search|getByRole.*button)' \
+      | grep -v '^\+\s*//' || true)
+    if [[ -n "$hits" ]]; then
+      log_fail "$file — inline selector detected (move to selectors.constants.ts)"
+      SEL_ERRORS=$((SEL_ERRORS + 1))
+    fi
+  done <<< "$STAGED_TS"
+  [[ $SEL_ERRORS -eq 0 ]] && log_pass "All selectors properly centralized"
+fi
+
+# =============================================================================
+# CHECK 5 — No hardcoded secrets / credentials
+# =============================================================================
+log_header "Check 5/6 — No hardcoded secrets"
+
+SECRET_PATTERNS=(
+  'LINKEDIN_PASSWORD\s*=\s*[^${'\''"]{3}'
+  'sk-ant-[a-zA-Z0-9]'
+  'password\s*[:=]\s*["'"'"'][^"'"'"']{4}'
+  'Bearer\s+[a-zA-Z0-9_\-]{20}'
+)
+SECRET_ERRORS=0
+
+for pattern in "${SECRET_PATTERNS[@]}"; do
+  hits=$(echo "$STAGED_ALL" | xargs -I{} git diff --cached {} 2>/dev/null \
+    | grep '^+' | grep -v '^+++' \
+    | grep -E "$pattern" \
+    | grep -v '^\+\s*//' || true)
+  if [[ -n "$hits" ]]; then
+    log_fail "Possible hardcoded secret detected — review before committing"
+    SECRET_ERRORS=$((SECRET_ERRORS + 1))
+  fi
+done
+
+[[ $SECRET_ERRORS -eq 0 ]] && log_pass "No hardcoded secrets detected"
+
+# =============================================================================
+# CHECK 6 — TypeScript compilation (only if .ts files are staged)
+# =============================================================================
+log_header "Check 6/6 — TypeScript strict check"
+
+if [[ -z "$STAGED_TS" ]]; then
+  log_info "No TypeScript files staged — skipped"
+elif ! command -v npx &>/dev/null; then
+  log_warn "npx not found — TypeScript check skipped"
+else
+  tsc_output=$(npx tsc --noEmit 2>&1 || true)
+  tsc_errors=$(echo "$tsc_output" | grep -c "error TS" || true)
+
+  if [[ $tsc_errors -gt 0 ]]; then
+    log_fail "TypeScript compilation failed ($tsc_errors error(s))"
+    echo "$tsc_output" | grep "error TS" | head -5 | while IFS= read -r line; do
+      echo -e "       ${RED}${line}${RESET}"
+    done
+    [[ $tsc_errors -gt 5 ]] && echo -e "       ${RED}... and $((tsc_errors - 5)) more${RESET}"
+  else
+    log_pass "TypeScript compiles cleanly"
+  fi
+fi
+
+# =============================================================================
+# Summary
+# =============================================================================
+echo -e "\n${BOLD}════════════════════════════════════════${RESET}"
+
+if [[ $ERRORS -eq 0 ]]; then
+  echo -e "${GREEN}${BOLD}  ✔  All checks passed — commit accepted${RESET}"
+  echo -e "${BOLD}════════════════════════════════════════${RESET}\n"
+  exit 0
+else
+  echo -e "${RED}${BOLD}  ✖  $ERRORS check(s) failed — commit blocked${RESET}"
+  echo -e "     Fix the issues above and try again."
+  echo -e "${BOLD}════════════════════════════════════════${RESET}\n"
+  exit 1
+fi
