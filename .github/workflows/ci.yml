@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs on the same branch/PR
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 1. Type check ──────────────────────────────────────────────────────────
+  typecheck:
+    name: TypeScript (zero errors)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared types (core)
+        run: npm run build -w packages/core
+
+      - name: Typecheck all workspaces
+        run: npm run typecheck
+
+  # ── 2. Lint ────────────────────────────────────────────────────────────────
+  lint:
+    name: ESLint (no-explicit-any · no-console)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared types (core)
+        run: npm run build -w packages/core
+
+      - name: Lint
+        run: npm run lint
+
+  # ── 3. Tests ───────────────────────────────────────────────────────────────
+  test:
+    name: Unit & integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared types (core)
+        run: npm run build -w packages/core
+
+      - name: Run tests
+        run: npm test
+
+  # ── 4. Security audit ──────────────────────────────────────────────────────
+  audit:
+    name: npm audit (no critical CVEs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=critical
+
+  # ── 5. Build verification ──────────────────────────────────────────────────
+  build:
+    name: Full monorepo build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npm run install:browsers
+
+      - name: Build all packages
+        run: npm run build
+
+      - name: Upload CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-dist
+          path: apps/cli/dist/
+          retention-days: 7
