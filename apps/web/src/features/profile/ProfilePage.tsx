@@ -1,48 +1,12 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ProfessionalProfile, WorkExperience, Education, Language } from '@job-agent/core';
 
-/* ── Types (mirrored from packages/core/src/types/cv.types.ts) ────────────── */
+/* ── Re-export types used locally (no inline domain type definitions) ─────── */
 
-type SeniorityLevel = 'Junior' | 'Mid' | 'Senior' | 'Lead' | 'Principal' | 'Executive';
-type LanguageLevel = 'Native' | 'Fluent' | 'Advanced' | 'Intermediate' | 'Basic';
+type SeniorityLevel = ProfessionalProfile['seniority'];
 
-interface WorkExperience {
-  company: string;
-  title: string;
-  startDate: string;
-  endDate: string;
-  description: string[];
-  technologies: string[];
-}
-
-interface Education {
-  institution: string;
-  degree: string;
-  field: string;
-  graduationYear: number;
-}
-
-interface Language {
-  name: string;
-  level: LanguageLevel;
-}
-
-interface ProfessionalProfile {
-  fullName: string;
-  email: string;
-  phone?: string;
-  location?: string;
-  linkedinUrl?: string;
-  headline: string;
-  summary: string;
-  seniority: SeniorityLevel;
-  yearsOfExperience: number;
-  skills: string[];
-  techStack: string[];
-  languages: Language[];
-  experience: WorkExperience[];
-  education: Education[];
-}
+/* ── Local UI-only response types (not domain types — safe to define here) ── */
 
 interface ProfileApiResponse {
   hasProfile: boolean;
@@ -57,9 +21,25 @@ interface UploadApiResponse {
   profile: ProfessionalProfile;
 }
 
+/** Fields the user can edit via the edit form */
+interface ProfileEditFields {
+  fullName: string;
+  headline: string;
+  summary: string;
+  skills: string[];
+  location: string;
+}
+
+/** Shape returned by the LinkedIn import endpoint */
+interface LinkedInProfileResponse {
+  success: boolean;
+  profile: ProfessionalProfile;
+}
+
 /* ── Constants ────────────────────────────────────────────────────────────── */
 
 const API_BASE_URL = 'http://localhost:3000';
+const USER_SERVICE_URL = 'http://localhost:3001';
 
 const SENIORITY_COLORS: Record<SeniorityLevel, { bg: string; text: string; border: string }> = {
   Junior:    { bg: 'rgba(34,197,94,0.1)',   text: '#4ade80',  border: 'rgba(34,197,94,0.25)'   },
@@ -145,14 +125,37 @@ const IconLoader: React.FC = () => (
   </svg>
 );
 
+const IconEdit: React.FC = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+);
+
+const IconLinkedIn: React.FC = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+    <rect width="4" height="12" x="2" y="9" />
+    <circle cx="4" cy="4" r="2" />
+  </svg>
+);
+
+const IconX: React.FC = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
 /* ── Helper sub-components ────────────────────────────────────────────────── */
 
 interface ChipProps {
   label: string;
   variant: 'indigo' | 'slate';
+  onRemove?: () => void;
 }
 
-const Chip: React.FC<ChipProps> = ({ label, variant }) => {
+const Chip: React.FC<ChipProps> = ({ label, variant, onRemove }) => {
   const styles =
     variant === 'indigo'
       ? { backgroundColor: 'rgba(99,102,241,0.12)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.25)' }
@@ -162,8 +165,10 @@ const Chip: React.FC<ChipProps> = ({ label, variant }) => {
     <span
       style={{
         ...styles,
-        display: 'inline-block',
-        padding: '3px 10px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: onRemove ? '3px 6px 3px 10px' : '3px 10px',
         borderRadius: '999px',
         fontSize: '12px',
         fontWeight: 500,
@@ -171,6 +176,25 @@ const Chip: React.FC<ChipProps> = ({ label, variant }) => {
       }}
     >
       {label}
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '1px',
+            color: 'inherit',
+            opacity: 0.7,
+            display: 'flex',
+            alignItems: 'center',
+          }}
+          aria-label={`Remove ${label}`}
+        >
+          <IconX />
+        </button>
+      )}
     </span>
   );
 };
@@ -197,6 +221,122 @@ const SectionCard: React.FC<SectionCardProps> = ({ title, icon, children }) => (
     {children}
   </div>
 );
+
+/* ── Toast-style inline notification ─────────────────────────────────────── */
+
+type ToastStatus = 'success' | 'error' | 'info';
+
+interface ToastBannerProps {
+  status: ToastStatus;
+  message: string;
+}
+
+const ToastBanner: React.FC<ToastBannerProps> = ({ status, message }) => {
+  const styles: Record<ToastStatus, React.CSSProperties> = {
+    success: { backgroundColor: 'rgba(34,197,94,0.08)',  border: '1px solid rgba(34,197,94,0.2)',  color: '#4ade80' },
+    error:   { backgroundColor: 'rgba(239,68,68,0.08)',  border: '1px solid rgba(239,68,68,0.2)',  color: '#f87171' },
+    info:    { backgroundColor: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', color: '#a5b4fc' },
+  };
+
+  return (
+    <div
+      style={{
+        ...styles[status],
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '10px 14px',
+        borderRadius: '10px',
+        fontSize: '13px',
+        marginBottom: '16px',
+      }}
+    >
+      {status === 'success' && <IconCheck />}
+      {status === 'error'   && <IconAlertCircle />}
+      {status === 'info'    && <IconLoader />}
+      {message}
+    </div>
+  );
+};
+
+/* ── Skill chip input ─────────────────────────────────────────────────────── */
+
+interface SkillChipInputProps {
+  skills: string[];
+  onChange: (skills: string[]) => void;
+}
+
+const SkillChipInput: React.FC<SkillChipInputProps> = ({ skills, onChange }) => {
+  const [inputValue, setInputValue] = useState('');
+
+  const addSkill = useCallback((raw: string) => {
+    const trimmed = raw.trim();
+    if (trimmed && !skills.includes(trimmed)) {
+      onChange([...skills, trimmed]);
+    }
+    setInputValue('');
+  }, [skills, onChange]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addSkill(inputValue);
+    } else if (e.key === 'Backspace' && inputValue === '' && skills.length > 0) {
+      onChange(skills.slice(0, -1));
+    }
+  }, [inputValue, skills, addSkill, onChange]);
+
+  const handleBlur = useCallback(() => {
+    if (inputValue.trim()) addSkill(inputValue);
+  }, [inputValue, addSkill]);
+
+  const removeSkill = useCallback((index: number) => {
+    onChange(skills.filter((_, i) => i !== index));
+  }, [skills, onChange]);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '6px',
+        padding: '8px',
+        borderRadius: '8px',
+        border: '1px solid #2a2a38',
+        backgroundColor: '#0f0f14',
+        minHeight: '44px',
+        alignItems: 'center',
+      }}
+    >
+      {skills.map((skill, idx) => (
+        <Chip
+          key={`${skill}-${idx}`}
+          label={skill}
+          variant="indigo"
+          onRemove={() => removeSkill(idx)}
+        />
+      ))}
+      <input
+        type="text"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+        placeholder={skills.length === 0 ? 'Type a skill, then press Enter or comma…' : 'Add more…'}
+        style={{
+          background: 'none',
+          border: 'none',
+          outline: 'none',
+          color: '#e2e2e8',
+          fontSize: '13px',
+          flex: 1,
+          minWidth: '160px',
+          padding: '2px 4px',
+        }}
+      />
+    </div>
+  );
+};
 
 /* ── Upload dropzone ──────────────────────────────────────────────────────── */
 
@@ -259,7 +399,6 @@ const CvDropzone: React.FC<DropzoneProps> = ({ onUploadSuccess }) => {
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleFile(file);
-    // Reset so the same file can be re-uploaded
     e.target.value = '';
   }, [handleFile]);
 
@@ -356,13 +495,230 @@ const CvDropzone: React.FC<DropzoneProps> = ({ onUploadSuccess }) => {
   );
 };
 
+/* ── Profile edit form ────────────────────────────────────────────────────── */
+
+interface ProfileEditFormProps {
+  profile: ProfessionalProfile;
+  onCancel: () => void;
+  onSaved: () => void;
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  backgroundColor: '#0f0f14',
+  border: '1px solid #2a2a38',
+  borderRadius: '8px',
+  padding: '9px 12px',
+  fontSize: '13px',
+  color: '#e2e2e8',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: '12px',
+  fontWeight: 500,
+  color: '#9090a8',
+  marginBottom: '6px',
+};
+
+const ProfileEditForm: React.FC<ProfileEditFormProps> = ({ profile, onCancel, onSaved }) => {
+  const queryClient = useQueryClient();
+
+  const [fields, setFields] = useState<ProfileEditFields>({
+    fullName: profile.fullName,
+    headline: profile.headline,
+    summary: profile.summary,
+    skills: [...profile.skills],
+    location: profile.location ?? '',
+  });
+
+  const [toast, setToast] = useState<{ status: ToastStatus; message: string } | null>(null);
+
+  const updateField = useCallback(<K extends keyof ProfileEditFields>(key: K, value: ProfileEditFields[K]) => {
+    setFields((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const saveMutation = useMutation<ProfessionalProfile, Error, ProfileEditFields>({
+    mutationFn: async (updated: ProfileEditFields) => {
+      const merged: ProfessionalProfile = { ...profile, ...updated };
+      const res = await fetch(`${API_BASE_URL}/api/cv/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(merged),
+      });
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => ({ message: 'Save failed' })) as { message?: string };
+        throw new Error(errorBody.message ?? `HTTP ${res.status}`);
+      }
+      return res.json() as Promise<ProfessionalProfile>;
+    },
+    onSuccess: () => {
+      setToast({ status: 'success', message: 'Profile saved successfully.' });
+      void queryClient.invalidateQueries({ queryKey: ['profile'] });
+      setTimeout(() => {
+        onSaved();
+      }, 1200);
+    },
+    onError: (err: Error) => {
+      setToast({ status: 'error', message: err.message });
+    },
+  });
+
+  const handleSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setToast(null);
+    saveMutation.mutate(fields);
+  }, [fields, saveMutation]);
+
+  const isSaving = saveMutation.status === 'pending';
+
+  return (
+    <div
+      style={{
+        backgroundColor: '#1a1a24',
+        border: '1px solid #2a2a38',
+        borderRadius: '14px',
+        padding: '24px',
+        marginTop: '16px',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+        <span style={{ color: '#6366f1' }}><IconEdit /></span>
+        <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#f0f0f8', margin: 0 }}>Edit Profile</h3>
+      </div>
+
+      {toast && <ToastBanner status={toast.status} message={toast.message} />}
+
+      <form onSubmit={handleSubmit}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+          {/* Full name */}
+          <div>
+            <label htmlFor="edit-fullName" style={labelStyle}>Full name</label>
+            <input
+              id="edit-fullName"
+              type="text"
+              value={fields.fullName}
+              onChange={(e) => updateField('fullName', e.target.value)}
+              style={inputStyle}
+              required
+            />
+          </div>
+
+          {/* Headline */}
+          <div>
+            <label htmlFor="edit-headline" style={labelStyle}>Headline</label>
+            <input
+              id="edit-headline"
+              type="text"
+              value={fields.headline}
+              onChange={(e) => updateField('headline', e.target.value)}
+              style={inputStyle}
+              placeholder="e.g. Senior Software Engineer · TypeScript · React"
+            />
+          </div>
+
+          {/* Location */}
+          <div>
+            <label htmlFor="edit-location" style={labelStyle}>Location</label>
+            <input
+              id="edit-location"
+              type="text"
+              value={fields.location}
+              onChange={(e) => updateField('location', e.target.value)}
+              style={inputStyle}
+              placeholder="e.g. Madrid, Spain (Remote)"
+            />
+          </div>
+
+          {/* Summary */}
+          <div>
+            <label htmlFor="edit-summary" style={labelStyle}>Summary</label>
+            <textarea
+              id="edit-summary"
+              value={fields.summary}
+              onChange={(e) => updateField('summary', e.target.value)}
+              rows={4}
+              style={{
+                ...inputStyle,
+                resize: 'vertical',
+                lineHeight: 1.6,
+              }}
+              placeholder="Brief professional summary…"
+            />
+          </div>
+
+          {/* Skills chip input */}
+          <div>
+            <label style={labelStyle}>Skills</label>
+            <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 6px' }}>
+              Press Enter or comma to add a skill. Backspace removes the last one.
+            </p>
+            <SkillChipInput
+              skills={fields.skills}
+              onChange={(skills) => updateField('skills', skills)}
+            />
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '4px' }}>
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={isSaving}
+              style={{
+                padding: '9px 18px',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 500,
+                border: '1px solid #2a2a38',
+                backgroundColor: 'transparent',
+                color: '#9090a8',
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '9px 18px',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 600,
+                border: 'none',
+                background: isSaving ? 'rgba(99,102,241,0.4)' : 'linear-gradient(135deg, #6366f1, #7c3aed)',
+                color: '#fff',
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {isSaving && <IconLoader />}
+              {isSaving ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+};
+
 /* ── Profile display ──────────────────────────────────────────────────────── */
 
 interface ProfileDisplayProps {
   profile: ProfessionalProfile;
+  onEditToggle: () => void;
+  onLinkedInImport: () => void;
+  isImporting: boolean;
 }
 
-const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
+const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile, onEditToggle, onLinkedInImport, isImporting }) => {
   const seniorityStyle = SENIORITY_COLORS[profile.seniority];
 
   return (
@@ -435,6 +791,54 @@ const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
               </span>
             </div>
           </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: '8px', flexShrink: 0, flexWrap: 'wrap' }}>
+            <button
+              onClick={onLinkedInImport}
+              disabled={isImporting}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 14px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 500,
+                border: '1px solid rgba(10,102,194,0.4)',
+                backgroundColor: isImporting ? 'rgba(10,102,194,0.05)' : 'rgba(10,102,194,0.1)',
+                color: isImporting ? '#6b7280' : '#60a5fa',
+                cursor: isImporting ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s',
+              }}
+              aria-label="Import from LinkedIn"
+            >
+              {isImporting ? <IconLoader /> : <IconLinkedIn />}
+              {isImporting ? 'Importing…' : 'Import from LinkedIn'}
+            </button>
+
+            <button
+              onClick={onEditToggle}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 14px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 500,
+                border: '1px solid #2a2a38',
+                backgroundColor: 'transparent',
+                color: '#9090a8',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+              aria-label="Edit profile"
+            >
+              <IconEdit />
+              Edit profile
+            </button>
+          </div>
         </div>
 
         {profile.summary && (
@@ -462,7 +866,7 @@ const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
         {profile.languages.length > 0 && (
           <SectionCard title="Languages" icon={<span style={{ fontSize: '16px' }}>🌐</span>}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {profile.languages.map((lang) => (
+              {profile.languages.map((lang: Language) => (
                 <Chip key={lang.name} label={`${lang.name} · ${lang.level}`} variant="slate" />
               ))}
             </div>
@@ -485,7 +889,7 @@ const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
       {profile.experience.length > 0 && (
         <SectionCard title="Experience" icon={<IconBriefcase />}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {profile.experience.map((job, idx) => (
+            {profile.experience.map((job: WorkExperience, idx: number) => (
               <div
                 key={`${job.company}-${idx}`}
                 style={{
@@ -519,7 +923,7 @@ const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
       {profile.education.length > 0 && (
         <SectionCard title="Education" icon={<IconGraduationCap />}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {profile.education.map((edu, idx) => (
+            {profile.education.map((edu: Education, idx: number) => (
               <div key={`${edu.institution}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
                 <div>
                   <p style={{ fontSize: '14px', fontWeight: 600, color: '#e2e2e8', margin: '0 0 2px' }}>{edu.degree} in {edu.field}</p>
@@ -576,10 +980,15 @@ const EmptyState: React.FC = () => (
 /* ── Main page ────────────────────────────────────────────────────────────── */
 
 /**
- * Profile page — lets users upload a CV and view their parsed professional profile.
+ * Profile page — lets users upload a CV, view and edit their parsed professional
+ * profile, and optionally import data directly from LinkedIn.
  */
 const ProfilePage: React.FC = () => {
   const [showDropzone, setShowDropzone] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [linkedInToast, setLinkedInToast] = useState<{ status: ToastStatus; message: string } | null>(null);
+
+  const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery<ProfileApiResponse>({
     queryKey: ['profile'],
@@ -590,6 +999,36 @@ const ProfilePage: React.FC = () => {
     },
     retry: false,
   });
+
+  const linkedInImportMutation = useMutation<LinkedInProfileResponse, Error>({
+    mutationFn: async () => {
+      const res = await fetch(`${USER_SERVICE_URL}/auth/linkedin/profile`);
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => ({ message: 'Import failed' })) as { message?: string };
+        throw new Error(errorBody.message ?? `HTTP ${res.status}`);
+      }
+      return res.json() as Promise<LinkedInProfileResponse>;
+    },
+    onSuccess: () => {
+      setLinkedInToast({ status: 'success', message: 'LinkedIn profile imported successfully.' });
+      void queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
+    onError: (err: Error) => {
+      setLinkedInToast({ status: 'error', message: `LinkedIn import failed: ${err.message}` });
+    },
+  });
+
+  /* Auto-dismiss LinkedIn toast after 5 seconds */
+  useEffect(() => {
+    if (!linkedInToast) return;
+    const timer = setTimeout(() => setLinkedInToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, [linkedInToast]);
+
+  const handleLinkedInImport = useCallback(() => {
+    setLinkedInToast(null);
+    linkedInImportMutation.mutate();
+  }, [linkedInImportMutation]);
 
   const hasProfile = data?.hasProfile === true && data.profile !== undefined;
 
@@ -678,6 +1117,11 @@ const ProfilePage: React.FC = () => {
           </div>
         )}
 
+        {/* ── LinkedIn import toast ── */}
+        {linkedInToast && (
+          <ToastBanner status={linkedInToast.status} message={linkedInToast.message} />
+        )}
+
         {/* ── Content ── */}
         {isLoading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0', color: '#6b7280', gap: '10px' }}>
@@ -707,9 +1151,25 @@ const ProfilePage: React.FC = () => {
         )}
 
         {!isLoading && !isError && (
-          hasProfile && data?.profile
-            ? <ProfileDisplay profile={data.profile} />
-            : !showDropzone && <EmptyState />
+          hasProfile && data?.profile ? (
+            <>
+              <ProfileDisplay
+                profile={data.profile}
+                onEditToggle={() => setIsEditing((v) => !v)}
+                onLinkedInImport={handleLinkedInImport}
+                isImporting={linkedInImportMutation.status === 'pending'}
+              />
+              {isEditing && (
+                <ProfileEditForm
+                  profile={data.profile}
+                  onCancel={() => setIsEditing(false)}
+                  onSaved={() => setIsEditing(false)}
+                />
+              )}
+            </>
+          ) : (
+            !showDropzone && <EmptyState />
+          )
         )}
       </div>
     </div>
