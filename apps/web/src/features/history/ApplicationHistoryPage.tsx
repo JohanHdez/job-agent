@@ -54,7 +54,7 @@ interface ApplicationsApiResponse {
 
 /* ── Constants ────────────────────────────────────────────────────────────── */
 
-const API_BASE_URL = 'http://localhost:3002';
+const API_BASE_URL = 'http://localhost:3000';
 
 const STATUS_BADGE_STYLES: Record<ApplicationStatus, { background: string; color: string; label: string }> = {
   applied:                 { background: 'rgba(34,197,94,0.12)',  color: '#22c55e', label: 'Applied'           },
