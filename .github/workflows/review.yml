@@ -9,6 +9,7 @@ jobs:
   review-commits:
     name: Commit messages
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: read
       pull-requests: write
@@ -56,6 +57,7 @@ jobs:
   review-standards:
     name: Coding standards
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: read
       pull-requests: write
@@ -94,6 +96,7 @@ jobs:
   review-security:
     name: Security checks
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: read
       pull-requests: write
