@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema.js';
@@ -101,8 +101,21 @@ export class UsersService {
     );
   }
 
-  /** Finds a user by their MongoDB _id. */
-  async findById(id: string): Promise<UserDocument | null> {
+  /**
+   * Finds a user by their MongoDB _id.
+   *
+   * Row-level security: the `requesterId` MUST match `id`.
+   * Throws {@link ForbiddenException} when a caller attempts to read another
+   * user's record, preventing horizontal privilege escalation.
+   *
+   * @param id - The MongoDB _id of the user record to retrieve.
+   * @param requesterId - The authenticated caller's userId (from JWT sub claim).
+   * @throws ForbiddenException if `requesterId` does not equal `id`.
+   */
+  async findById(id: string, requesterId: string): Promise<UserDocument | null> {
+    if (id !== requesterId) {
+      throw new ForbiddenException('Access denied: you may only access your own user record.');
+    }
     return this.userModel.findById(id).exec();
   }
 
