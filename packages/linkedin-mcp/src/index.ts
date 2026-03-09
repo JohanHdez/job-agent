@@ -62,7 +62,7 @@ const server = new Server(
 
 // ─── List Tools ──────────────────────────────────────────────────────────────
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+server.setRequestHandler(ListToolsRequestSchema, () => Promise.resolve({
   tools: [
     {
       name: 'search_jobs',

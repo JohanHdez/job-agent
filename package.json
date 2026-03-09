@@ -17,7 +17,7 @@
     "dev:services": "concurrently \"npm run dev -w packages/api\" \"npm run dev -w @job-agent/user-service\"",
     "typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/cv-parser/tsconfig.json && tsc --noEmit -p packages/linkedin-mcp/tsconfig.json && tsc --noEmit -p packages/job-search/tsconfig.json && tsc --noEmit -p packages/ats-apply/tsconfig.json && tsc --noEmit -p packages/reporter/tsconfig.json && tsc --noEmit -p packages/api/tsconfig.json && tsc --noEmit -p apps/cli/tsconfig.json && tsc --noEmit -p apps/microservices/user-service/tsconfig.json",
     "test": "echo 'No tests yet — add Vitest/Jest test suites to enable this gate' && exit 0",
-    "lint": "eslint packages/**/src/**/*.ts apps/**/src/**/*.ts",
+    "lint": "eslint \"packages/**/src/**/*.ts\" \"apps/**/src/**/*.ts\" --ignore-pattern \"**/*.test.ts\" --ignore-pattern \"**/*.test.tsx\"",
     "clean": "rimraf packages/*/dist apps/*/dist packages/*/tsconfig.tsbuildinfo apps/microservices/*/dist"
   },
   "devDependencies": {
