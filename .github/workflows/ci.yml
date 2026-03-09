@@ -28,8 +28,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build shared types (core)
-        run: npm run build -w packages/core
+      - name: Build shared packages
+        run: |
+          npm run build -w packages/core
+          npm run build -w packages/cv-parser
+          npm run build -w packages/linkedin-mcp
+          npm run build -w packages/job-search
+          npm run build -w packages/ats-apply
+          npm run build -w packages/reporter
 
       - name: Typecheck all workspaces
         run: npm run typecheck
@@ -50,8 +56,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build shared types (core)
-        run: npm run build -w packages/core
+      - name: Build shared packages
+        run: |
+          npm run build -w packages/core
+          npm run build -w packages/cv-parser
+          npm run build -w packages/linkedin-mcp
+          npm run build -w packages/job-search
+          npm run build -w packages/ats-apply
+          npm run build -w packages/reporter
 
       - name: Lint
         run: npm run lint
