@@ -17,12 +17,14 @@ function resolveErrorMessage(code: string | null): string | null {
 
 /* ── Icon components ────────────────────────────────────────────────────── */
 
+/** LinkedIn brand SVG icon */
 const LinkedInIcon: React.FC = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden="true">
     <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z" />
   </svg>
 );
 
+/** Google brand SVG icon */
 const GoogleIcon: React.FC = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
     <path
@@ -44,96 +46,77 @@ const GoogleIcon: React.FC = () => (
   </svg>
 );
 
+/** JobAgent logo mark SVG */
+const LogoIcon: React.FC = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      stroke="white"
+      fill="none"
+      d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+    />
+  </svg>
+);
+
 /* ── Page component ─────────────────────────────────────────────────────── */
 
 /**
  * Dark SaaS login page with LinkedIn and Google OAuth buttons.
  * Reads an optional ?error= query param and shows a human-readable message.
+ * Uses Tailwind CSS for all layout and spacing; inline styles only for hex
+ * colors that Tailwind cannot express natively.
  */
 const LoginPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const errorMessage = resolveErrorMessage(searchParams.get('error'));
 
+  /** Redirect to LinkedIn OAuth endpoint (external URL — not React Router) */
   const handleLinkedInSignIn = () => {
     window.location.href = 'http://localhost:3001/auth/linkedin';
   };
 
+  /** Redirect to Google OAuth endpoint (external URL — not React Router) */
   const handleGoogleSignIn = () => {
     window.location.href = 'http://localhost:3001/auth/google';
   };
 
   return (
     <div
-      style={{
-        backgroundColor: '#0f0f14',
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontFamily: "'Inter', system-ui, sans-serif",
-        padding: '24px',
-        position: 'relative',
-      }}
+      className="min-h-screen flex items-center justify-center px-6 py-10 font-sans relative"
+      style={{ backgroundColor: '#0f0f14' }}
     >
-      {/* Ambient indigo glow */}
+      {/* Ambient indigo glow — radial gradient cannot be expressed in Tailwind */}
       <div
+        className="fixed inset-0 pointer-events-none z-0"
         style={{
-          position: 'fixed',
-          inset: 0,
-          pointerEvents: 'none',
           background:
             'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(99,102,241,0.15) 0%, transparent 65%)',
-          zIndex: 0,
         }}
       />
 
       {/* Login card */}
       <div
+        className="relative z-10 w-full max-w-sm rounded-2xl px-9 py-10"
         style={{
-          position: 'relative',
-          zIndex: 1,
-          width: '100%',
-          maxWidth: '400px',
           backgroundColor: '#1a1a24',
           border: '1px solid #2a2a38',
-          borderRadius: '20px',
-          padding: '40px 36px 36px',
           boxShadow:
             '0 0 0 1px rgba(99,102,241,0.08), 0 24px 64px rgba(0,0,0,0.4), 0 0 80px rgba(99,102,241,0.06)',
         }}
       >
         {/* Logo */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-            marginBottom: '32px',
-          }}
-        >
+        <div className="flex items-center justify-center gap-2.5 mb-8">
           <div
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white" aria-hidden="true">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-            </svg>
+            <LogoIcon />
           </div>
           <span
-            style={{
-              fontSize: '20px',
-              fontWeight: 700,
-              letterSpacing: '-0.03em',
-              color: '#f0f0f8',
-            }}
+            className="text-xl font-bold tracking-tight"
+            style={{ color: '#f0f0f8', letterSpacing: '-0.03em' }}
           >
             Job<span style={{ color: '#6366f1' }}>Agent</span>
           </span>
@@ -141,44 +124,25 @@ const LoginPage: React.FC = () => {
 
         {/* Headline */}
         <h1
-          style={{
-            fontSize: '22px',
-            fontWeight: 700,
-            letterSpacing: '-0.03em',
-            color: '#f0f0f8',
-            margin: '0 0 8px',
-            textAlign: 'center',
-          }}
+          className="text-center text-2xl font-bold mb-2"
+          style={{ color: '#f0f0f8', letterSpacing: '-0.03em' }}
         >
-          Welcome back
+          Sign in to Job Agent
         </h1>
 
         {/* Sub-headline */}
-        <p
-          style={{
-            fontSize: '13px',
-            color: '#9090a8',
-            margin: '0 0 32px',
-            textAlign: 'center',
-            lineHeight: 1.6,
-          }}
-        >
-          Sign in to automate your job search
+        <p className="text-center text-sm mb-8" style={{ color: '#9090a8', lineHeight: '1.6' }}>
+          Automate your LinkedIn job search
         </p>
 
         {/* Error banner */}
         {errorMessage !== null && (
           <div
             role="alert"
+            className="flex items-start gap-2.5 rounded-xl px-3.5 py-3 mb-5"
             style={{
               backgroundColor: 'rgba(239,68,68,0.1)',
               border: '1px solid rgba(239,68,68,0.3)',
-              borderRadius: '10px',
-              padding: '12px 14px',
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '10px',
             }}
           >
             <svg
@@ -190,120 +154,71 @@ const LoginPage: React.FC = () => {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              style={{ flexShrink: 0, marginTop: '1px' }}
+              className="flex-shrink-0 mt-px"
               aria-hidden="true"
             >
               <circle cx="12" cy="12" r="10" />
               <line x1="12" x2="12" y1="8" y2="12" />
               <line x1="12" x2="12.01" y1="16" y2="16" />
             </svg>
-            <span style={{ fontSize: '13px', color: '#fca5a5', lineHeight: 1.5 }}>
+            <span className="text-sm leading-relaxed" style={{ color: '#fca5a5' }}>
               {errorMessage}
             </span>
           </div>
         )}
 
-        {/* LinkedIn button */}
+        {/* LinkedIn OAuth button */}
         <button
           type="button"
           onClick={handleLinkedInSignIn}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-            padding: '12px 20px',
-            borderRadius: '10px',
-            border: 'none',
-            backgroundColor: '#0077b5',
-            color: '#fff',
-            fontSize: '14px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.15s',
-            marginBottom: '12px',
-          }}
+          className="w-full flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold text-white mb-3 transition-all duration-150 hover:-translate-y-px cursor-pointer"
+          style={{ backgroundColor: '#0a66c2' }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#006097';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,119,181,0.35)';
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#0958a8';
+            (e.currentTarget as HTMLButtonElement).style.boxShadow =
+              '0 4px 16px rgba(10,102,194,0.35)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#0077b5';
-            e.currentTarget.style.transform = '';
-            e.currentTarget.style.boxShadow = '';
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#0a66c2';
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = '';
           }}
         >
           <LinkedInIcon />
           Continue with LinkedIn
         </button>
 
-        {/* Divider */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            margin: '20px 0',
-          }}
-        >
-          <div style={{ flex: 1, height: '1px', backgroundColor: '#2a2a38' }} />
-          <span style={{ fontSize: '12px', color: '#6b7280', flexShrink: 0 }}>or</span>
-          <div style={{ flex: 1, height: '1px', backgroundColor: '#2a2a38' }} />
-        </div>
-
-        {/* Google button */}
+        {/* Google OAuth button */}
         <button
           type="button"
           onClick={handleGoogleSignIn}
+          className="w-full flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold mb-7 transition-all duration-150 hover:-translate-y-px cursor-pointer"
           style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-            padding: '12px 20px',
-            borderRadius: '10px',
-            border: '1px solid #2a2a38',
             backgroundColor: '#ffffff',
             color: '#1f1f1f',
-            fontSize: '14px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.15s',
-            marginBottom: '28px',
+            border: '1px solid #2a2a38',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#f5f5f5';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#f5f5f5';
+            (e.currentTarget as HTMLButtonElement).style.boxShadow =
+              '0 4px 16px rgba(0,0,0,0.15)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#ffffff';
-            e.currentTarget.style.transform = '';
-            e.currentTarget.style.boxShadow = '';
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#ffffff';
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = '';
           }}
         >
           <GoogleIcon />
           Continue with Google
         </button>
 
-        {/* Footer legal */}
-        <p
-          style={{
-            fontSize: '11px',
-            color: '#6b7280',
-            textAlign: 'center',
-            margin: 0,
-            lineHeight: 1.6,
-          }}
-        >
+        {/* Footer legal note */}
+        <p className="text-center text-xs leading-relaxed" style={{ color: '#6b7280' }}>
           By signing in you agree to our{' '}
           <span
-            style={{ color: '#9090a8', textDecoration: 'underline', cursor: 'pointer' }}
+            className="underline cursor-pointer"
+            style={{ color: '#9090a8' }}
           >
-            terms of service
+            Terms of Service
           </span>
           .
         </p>
