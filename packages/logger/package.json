@@ -1,7 +1,6 @@
 {
-  "name": "@job-agent/job-search",
+  "name": "@job-agent/logger",
   "version": "1.0.0",
-  "description": "Multi-platform job search orchestrator",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,14 +15,7 @@
     "dev": "tsc -p tsconfig.json --watch"
   },
   "dependencies": {
-    "@job-agent/core": "*",
-    "@job-agent/logger": "*",
-    "chalk": "^5.3.0",
-    "winston": "^3.13.0"
-  },
-  "devDependencies": {
-    "@types/node": "^20.12.12",
-    "rimraf": "^5.0.5",
-    "typescript": "^5.4.5"
+    "winston": "^3.17.0",
+    "chalk": "^4.1.2"
   }
 }
