@@ -123,36 +123,52 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
+| AUTH-01 | Phase 2 | Pending |
+| AUTH-02 | Phase 2 | Pending |
+| AUTH-03 | Phase 2 | Pending |
 | AUTH-04 | Phase 2 | Pending |
-| NAV-01 | Phase 5 | Pending |
+| NAV-01 | Phase 6 | Pending |
 | PROF-01 | Phase 2 | Pending |
 | PROF-02 | Phase 2 | Pending |
 | PROF-03 | Phase 2 | Pending |
 | PROF-04 | Phase 2 | Pending |
 | SRCH-01 | Phase 2 | Pending |
 | SRCH-02 | Phase 2 | Pending |
-| SRCH-03 | Phase 3 | Pending |
-| AUTO-01 | Phase 3 | Pending |
-| AUTO-02 | Phase 3 | Pending |
-| AUTO-03 | Phase 3 | Pending |
-| AUTO-04 | Phase 3 | Pending |
-| APPLY-01 | Phase 4 | Pending |
-| APPLY-02 | Phase 4 | Pending |
-| APPLY-03 | Phase 4 | Pending |
-| APPLY-04 | Phase 3 | Pending |
-| HIST-01 | Phase 4 | Pending |
-| HIST-02 | Phase 4 | Pending |
-| HIST-03 | Phase 4 | Pending |
-| HIST-04 | Phase 3 | Pending |
-| REPT-01 | Phase 5 | Pending |
-| REPT-02 | Phase 5 | Pending |
-| REPT-03 | Phase 6 | Pending |
-| REPT-04 | Phase 6 | Pending |
+| SRCH-03 | Phase 4 | Pending |
+| AUTO-01 | Phase 4 | Pending |
+| AUTO-02 | Phase 4 | Pending |
+| AUTO-03 | Phase 4 | Pending |
+| AUTO-04 | Phase 4 | Pending |
+| APPLY-01 | Phase 5 | Pending |
+| APPLY-02 | Phase 5 | Pending |
+| APPLY-03 | Phase 5 | Pending |
+| APPLY-04 | Phase 4 | Pending |
+| HIST-01 | Phase 5 | Pending |
+| HIST-02 | Phase 5 | Pending |
+| HIST-03 | Phase 5 | Pending |
+| HIST-04 | Phase 4 | Pending |
+| REPT-01 | Phase 7 | Pending |
+| REPT-02 | Phase 7 | Pending |
+| REPT-03 | Phase 7 | Pending |
+| REPT-04 | Phase 7 | Pending |
 | RT-01 | Phase 3 | Pending |
-| NF-01–NF-17 | Cross-phase | Pending |
+| NF-01 | Phase 6 | Pending |
+| NF-02 | Phase 4 | Pending |
+| NF-03 | Phase 2 | Pending |
+| NF-04 | Phase 5 | Pending |
+| NF-05 | Phase 3 | Pending |
+| NF-06 | Phase 1 | Pending |
+| NF-07 | Phase 1 | Pending |
+| NF-08 | Phase 2 | Pending |
+| NF-09 | Phase 1 | Pending |
+| NF-10 | Phase 1 | Pending |
+| NF-11 | Phase 1 | Pending |
+| NF-12 | Phase 1 | Pending |
+| NF-13 | Phase 1 | Pending |
+| NF-14 | Phase 6 | Pending |
+| NF-15 | Phase 6 | Pending |
+| NF-16 | Phase 6 | Pending |
+| NF-17 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 46 total
@@ -161,4 +177,5 @@
 
 ---
 *Requirements defined: 2026-03-11*
+*Traceability updated: 2026-03-11 (roadmap v1.0)*
 *Source: docs/JobAgent-Requerimientos-MVP-v1.1.docx*
