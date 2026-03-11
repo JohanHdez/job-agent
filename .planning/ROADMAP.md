@@ -32,7 +32,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. All packages/core shared types compile under TypeScript strict mode with zero errors and zero `any`
   4. Every NestJS module logs structured JSON (correlationId, userId, ISO timestamp) via the shared Winston factory — no `console.log` in any module
   5. CI/CD pipeline runs on every push: tsc --noEmit passes, secret scan passes, test coverage gate enforced
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Migrate user-service to apps/api, create packages/logger TypeScript source, pin TypeScript monorepo-wide
+- [ ] 01-02-PLAN.md — Wire NestJS infrastructure modules (Health, Logger, JwtGuard, CorrelationInterceptor) and write Jest tests
+- [ ] 01-03-PLAN.md — Rewrite CI/CD pipeline with typecheck + Jest coverage + gitleaks gates
 
 ### Phase 2: Auth + Users
 **Goal**: Users can authenticate via LinkedIn OAuth or Google OAuth, receive JWT access and refresh tokens, import their professional profile (via CV upload or LinkedIn API scan), edit profile fields, configure search preferences, and save up to 5 named presets — all data persisted per-user in MongoDB.
@@ -111,7 +116,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
+| 1. Foundation | 0/3 | Planned | - |
 | 2. Auth + Users | 0/TBD | Not started | - |
 | 3. Sessions + BullMQ | 0/TBD | Not started | - |
 | 4. Pipeline — Search + Scoring | 0/TBD | Not started | - |
