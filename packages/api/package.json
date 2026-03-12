@@ -1,7 +1,7 @@
 {
-  "name": "@job-agent/api",
+  "name": "@job-agent/express-api",
   "version": "1.0.0",
-  "description": "Express REST API for the job agent",
+  "description": "Express REST API for the job agent (legacy — superseded by apps/api NestJS monolith)",
   "main": "./dist/server.js",
   "types": "./dist/server.d.ts",
   "type": "module",
@@ -32,7 +32,6 @@
     "@types/js-yaml": "^4.0.9",
     "@types/multer": "^1.4.11",
     "@types/node": "^20.12.12",
-    "rimraf": "^5.0.5",
-    "typescript": "^5.4.5"
+    "rimraf": "^5.0.5"
   }
 }

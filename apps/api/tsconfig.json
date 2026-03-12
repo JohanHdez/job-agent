@@ -11,7 +11,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "../../",
     "paths": {
       "@job-agent/logger": ["../../packages/logger/src/index.ts"]
     }
