@@ -6,7 +6,8 @@
   "workspaces": [
     "packages/*",
     "apps/*",
-    "apps/microservices/*"
+    "apps/microservices/*",
+    "apps/api"
   ],
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
@@ -14,8 +15,8 @@
     "install:browsers": "node node_modules/playwright/cli.js install chromium chromium-headless-shell",
     "build": "npm run build -w packages/core && npm run build -w packages/cv-parser && npm run build -w packages/linkedin-mcp && npm run build -w packages/job-search && npm run build -w packages/ats-apply && npm run build -w packages/reporter && npm run build -w packages/api && npm run build -w apps/cli",
     "dev": "concurrently \"npm run dev -w packages/core\" \"npm run dev -w packages/cv-parser\" \"npm run dev -w packages/linkedin-mcp\" \"npm run dev -w packages/job-search\" \"npm run dev -w packages/api\" \"npm run dev -w @job-agent/user-service\"",
-    "dev:services": "concurrently \"npm run dev -w packages/api\" \"npm run dev -w @job-agent/user-service\"",
-    "typecheck": "npm run build -w packages/core && npm run build -w packages/cv-parser && npm run build -w packages/linkedin-mcp && npm run build -w packages/job-search && npm run build -w packages/ats-apply && npm run build -w packages/reporter && tsc --noEmit -p packages/api/tsconfig.json && tsc --noEmit -p apps/cli/tsconfig.json && tsc --noEmit -p apps/microservices/user-service/tsconfig.json",
+    "dev:services": "concurrently \"npm run dev -w packages/api\" \"npm run dev -w @job-agent/api\"",
+    "typecheck": "npm run build -w packages/core && npm run build -w packages/cv-parser && npm run build -w packages/linkedin-mcp && npm run build -w packages/job-search && npm run build -w packages/ats-apply && npm run build -w packages/reporter && tsc --noEmit -p packages/api/tsconfig.json && tsc --noEmit -p apps/cli/tsconfig.json && tsc --noEmit -p apps/microservices/user-service/tsconfig.json && tsc --noEmit -p apps/api/tsconfig.json",
     "test": "echo 'No tests yet — add Vitest/Jest test suites to enable this gate' && exit 0",
     "lint": "eslint \"packages/**/src/**/*.ts\" \"apps/**/src/**/*.ts\" --ignore-pattern \"**/*.test.ts\" --ignore-pattern \"**/*.test.tsx\"",
     "clean": "rimraf packages/*/dist apps/*/dist packages/*/tsconfig.tsbuildinfo apps/microservices/*/dist"
