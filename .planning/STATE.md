@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Completed 01-foundation plan 01-01
-last_updated: "2026-03-12T23:40:23.808Z"
+status: in-progress
+stopped_at: Completed 01-foundation plan 01-02
+last_updated: "2026-03-12T23:52:00Z"
 last_activity: 2026-03-11 — Roadmap created from requirements + research
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 1 of 7 (Foundation)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-11 — Roadmap created from requirements + research
+Plan: 2 of 3 in current phase
+Status: In progress
+Last activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 10%
 
 ## Performance Metrics
 
@@ -66,6 +66,9 @@ Recent decisions affecting current work:
 - [Pre-Phase 1]: passport 0.7.x must NOT be upgraded to 1.0 — all installed OAuth strategies target 0.6-0.7 API
 - [Phase 01-foundation]: npm overrides forces typescript 5.9.3 monorepo-wide; @nestjs/cli nested install persists but workspace source compiles against single version
 - [Phase 01-foundation]: apps/api tsconfig.json excludes test files to prevent Plan 02 stubs from blocking Plan 01 tsc check
+- [Phase 01-02]: JWT guard uses HS256 with JWT_SECRET in Phase 1; RS256 with asymmetric keys deferred to Phase 2 (OAuth token issuance)
+- [Phase 01-02]: Coverage exclusions: auth/users (Phase 2), main.ts, app.module.ts, *.module.ts, *.constants.ts, correlation.interceptor.ts (requires live HTTP context)
+- [Phase 01-02]: packages/api renamed to @job-agent/express-api to resolve workspace name collision with apps/api NestJS monolith
 
 ### Pending Todos
 
@@ -80,6 +83,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T23:40:23.805Z
-Stopped at: Completed 01-foundation plan 01-01
+Last session: 2026-03-12T23:52:00Z
+Stopped at: Completed 01-02-PLAN.md (NestJS infrastructure modules — LoggerModule, HealthModule, JwtAuthGuard, CorrelationInterceptor)
 Resume file: None

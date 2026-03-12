@@ -35,8 +35,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Migrate user-service to apps/api, create packages/logger TypeScript source, pin TypeScript monorepo-wide
-- [ ] 01-02-PLAN.md — Wire NestJS infrastructure modules (Health, Logger, JwtGuard, CorrelationInterceptor) and write Jest tests
+- [x] 01-01-PLAN.md — Migrate user-service to apps/api, create packages/logger TypeScript source, pin TypeScript monorepo-wide
+- [x] 01-02-PLAN.md — Wire NestJS infrastructure modules (Health, Logger, JwtGuard, CorrelationInterceptor) and write Jest tests
 - [ ] 01-03-PLAN.md — Rewrite CI/CD pipeline with typecheck + Jest coverage + gitleaks gates
 
 ### Phase 2: Auth + Users
