@@ -7,7 +7,7 @@
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
-    "start": "node dist/main",
+    "start": "node dist/apps/api/src/main",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint src/**/*.ts",
     "test": "jest --passWithNoTests",
