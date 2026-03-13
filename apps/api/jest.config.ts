@@ -27,6 +27,8 @@ const config: Config = {
     '!**/*.constants.(t|j)s',
     // Exclude correlation interceptor — requires live HTTP context, covered by e2e tests
     '!**/correlation.interceptor.(t|j)s',
+    // Exclude OAuth strategies — require live Passport context, covered by e2e tests
+    '!**/strategies/*.strategy.(t|j)s',
   ],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',

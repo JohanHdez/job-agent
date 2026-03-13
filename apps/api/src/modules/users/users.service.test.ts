@@ -187,4 +187,128 @@ describe('UsersService', () => {
 
     await expect(service.setActivePreset(userId, presetId)).rejects.toThrow(NotFoundException);
   });
+
+  // ── getPresets ────────────────────────────────────────────────────────────────
+
+  it('getPresets returns presets array from User document', async () => {
+    const userId = 'user-id-123';
+    const presets = [
+      { id: 'p1', name: 'Preset 1', config: {}, createdAt: new Date() },
+    ];
+
+    mockUserModel.findById.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValueOnce({ presets }),
+    });
+
+    const result = await service.getPresets(userId);
+
+    expect(result).toEqual(presets);
+    expect(mockUserModel.findById).toHaveBeenCalledWith(userId);
+  });
+
+  it('getPresets throws NotFoundException when user not found', async () => {
+    const userId = 'missing-user';
+
+    mockUserModel.findById.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValueOnce(null),
+    });
+
+    await expect(service.getPresets(userId)).rejects.toThrow(NotFoundException);
+  });
+
+  // ── updatePreset ──────────────────────────────────────────────────────────────
+
+  it('updatePreset updates a preset name and returns the updated preset', async () => {
+    const userId = 'user-id-123';
+    const presetId = 'preset-uuid-001';
+    const dto = { name: 'Renamed Preset' };
+
+    const updatedPreset = { id: presetId, name: 'Renamed Preset', config: {}, createdAt: new Date() };
+
+    mockUserModel.updateOne.mockResolvedValueOnce({ modifiedCount: 1 });
+    mockUserModel.findById.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValueOnce({ presets: [updatedPreset] }),
+    });
+
+    const result = await service.updatePreset(userId, presetId, dto);
+
+    expect(result).toEqual(updatedPreset);
+    expect(mockUserModel.updateOne).toHaveBeenCalledWith(
+      { _id: userId },
+      { $set: { 'presets.$[elem].name': 'Renamed Preset' } },
+      { arrayFilters: [{ 'elem.id': presetId }] }
+    );
+  });
+
+  it('updatePreset throws NotFoundException when presetId not found', async () => {
+    const userId = 'user-id-123';
+    const presetId = 'nonexistent';
+
+    mockUserModel.updateOne.mockResolvedValueOnce({ modifiedCount: 0 });
+
+    await expect(service.updatePreset(userId, presetId, { name: 'X' })).rejects.toThrow(NotFoundException);
+  });
+
+  // ── deletePreset ──────────────────────────────────────────────────────────────
+
+  it('deletePreset removes the preset from user document', async () => {
+    const userId = 'user-id-123';
+    const presetId = 'preset-uuid-001';
+
+    mockUserModel.updateOne.mockResolvedValueOnce({ modifiedCount: 1 });
+
+    await expect(service.deletePreset(userId, presetId)).resolves.toBeUndefined();
+    expect(mockUserModel.updateOne).toHaveBeenCalledWith(
+      { _id: userId },
+      { $pull: { presets: { id: presetId } } }
+    );
+  });
+
+  it('deletePreset throws NotFoundException when presetId not found', async () => {
+    const userId = 'user-id-123';
+    const presetId = 'nonexistent';
+
+    mockUserModel.updateOne.mockResolvedValueOnce({ modifiedCount: 0 });
+
+    await expect(service.deletePreset(userId, presetId)).rejects.toThrow(NotFoundException);
+  });
+
+  // ── updateProfile NotFoundException branch ────────────────────────────────────
+
+  it('updateProfile throws NotFoundException when user not found', async () => {
+    const userId = 'missing-user';
+
+    mockUserModel.findOneAndUpdate.mockResolvedValueOnce(null);
+
+    await expect(service.updateProfile(userId, { name: 'X' })).rejects.toThrow(NotFoundException);
+  });
+
+  // ── createPreset NotFoundException branch ─────────────────────────────────────
+
+  it('createPreset throws NotFoundException when user not found', async () => {
+    const userId = 'missing-user';
+
+    mockUserModel.findById.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValueOnce(null),
+    });
+
+    const dto = {
+      name: 'Test',
+      config: {
+        keywords: [],
+        location: 'Remote',
+        modality: ['Remote'] as ('Remote' | 'Hybrid' | 'On-site')[],
+        languages: [],
+        seniority: [],
+        datePosted: 'past_week' as const,
+        excludedCompanies: [],
+        platforms: [] as ('linkedin' | 'indeed' | 'computrabajo' | 'bumeran' | 'getonboard' | 'infojobs' | 'greenhouse')[],
+        maxJobsToFind: 10,
+        minScoreToApply: 70,
+        maxApplicationsPerSession: 5,
+      },
+    };
+
+    await expect(service.createPreset(userId, dto)).rejects.toThrow(NotFoundException);
+  });
 });
