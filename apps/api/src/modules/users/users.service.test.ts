@@ -1,28 +1,34 @@
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { UsersService } from './users.service.js';
 import { User } from './schemas/user.schema.js';
 
 /**
- * UsersService unit test stubs — Phase 2, Wave 0.
- * All it.todo() tests will be implemented in Plan 03 (Users extensions).
+ * UsersService unit tests — Plan 02-03.
+ * Covers AUTH-04 (profile update), SRCH-01 (preset creation), SRCH-02 (preset limit + activate).
  */
 describe('UsersService', () => {
   let service: UsersService;
 
+  const mockUserModel = {
+    findById: jest.fn(),
+    findOne: jest.fn(),
+    findOneAndUpdate: jest.fn(),
+    updateOne: jest.fn(),
+    updateMany: jest.fn(),
+  };
+
   beforeEach(async () => {
+    // resetAllMocks clears both mock implementations (mockReturnValueOnce queues) and call history
+    jest.resetAllMocks();
+
     const module = await Test.createTestingModule({
       providers: [
         UsersService,
         {
           provide: getModelToken(User.name),
-          useValue: {
-            findById: jest.fn(),
-            findOne: jest.fn(),
-            findOneAndUpdate: jest.fn(),
-            updateOne: jest.fn(),
-            updateMany: jest.fn(),
-          },
+          useValue: mockUserModel,
         },
       ],
     }).compile();
@@ -34,15 +40,151 @@ describe('UsersService', () => {
     expect(service).toBeDefined();
   });
 
-  // Implement in Plan 03 (Users extensions)
-  it.todo('AUTH-04: updateProfile updates name/email/language and returns updated document');
+  // ── AUTH-04: updateProfile ────────────────────────────────────────────────────
 
-  // Implement in Plan 03 (Users extensions)
-  it.todo('SRCH-01: createPreset stores all AppConfig fields and returns the preset');
+  it('AUTH-04: updateProfile updates name/email/language and returns updated document', async () => {
+    const userId = 'user-id-123';
+    const dto = { name: 'Jane Doe', email: 'jane@example.com', language: 'es' as const };
+    const updatedDoc = {
+      _id: userId,
+      name: 'Jane Doe',
+      email: 'jane@example.com',
+      language: 'es',
+    };
 
-  // Implement in Plan 03 (Users extensions)
-  it.todo('SRCH-02: createPreset throws ConflictException when user already has 5 presets');
+    mockUserModel.findOneAndUpdate.mockResolvedValueOnce(updatedDoc);
 
-  // Implement in Plan 03 (Users extensions)
-  it.todo('SRCH-02: setActivePreset updates activePresetId on User document');
+    const result = await service.updateProfile(userId, dto);
+
+    expect(result).toEqual(updatedDoc);
+    expect(mockUserModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: userId },
+      { $set: dto },
+      { new: true, runValidators: true }
+    );
+  });
+
+  // ── SRCH-01: createPreset ─────────────────────────────────────────────────────
+
+  it('SRCH-01: createPreset stores all AppConfig fields and returns the preset', async () => {
+    const userId = 'user-id-123';
+    const dto = {
+      name: 'Remote TypeScript',
+      config: {
+        keywords: ['TypeScript', 'NestJS'],
+        location: 'Remote',
+        modality: ['Remote'] as ('Remote' | 'Hybrid' | 'On-site')[],
+        languages: ['English'],
+        seniority: ['Mid', 'Senior'],
+        datePosted: 'past_week' as const,
+        excludedCompanies: [],
+        platforms: ['linkedin'] as ('linkedin' | 'indeed' | 'computrabajo' | 'bumeran' | 'getonboard' | 'infojobs' | 'greenhouse')[],
+        maxJobsToFind: 50,
+        minScoreToApply: 70,
+        maxApplicationsPerSession: 10,
+      },
+    };
+
+    // First findById: fetch user to check preset count (0 presets)
+    mockUserModel.findById.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValueOnce({ presets: [] }),
+    });
+    // updateOne: push new preset
+    mockUserModel.updateOne.mockResolvedValueOnce({ modifiedCount: 1 });
+
+    const result = await service.createPreset(userId, dto);
+
+    expect(result).toBeDefined();
+    expect(result.name).toBe(dto.name);
+    expect(result.config.keywords).toEqual(dto.config.keywords);
+    expect(result.config.minScoreToApply).toBe(70);
+    expect(result.id).toBeDefined();
+    expect(typeof result.id).toBe('string');
+    expect(mockUserModel.findById).toHaveBeenCalledWith(userId);
+    expect(mockUserModel.updateOne).toHaveBeenCalledWith(
+      { _id: userId },
+      { $push: { presets: expect.objectContaining({ name: dto.name, config: dto.config }) } }
+    );
+  });
+
+  // ── SRCH-02: preset limit ─────────────────────────────────────────────────────
+
+  it('SRCH-02: createPreset throws ConflictException when user already has 5 presets', async () => {
+    const userId = 'user-id-123';
+    const dto = {
+      name: 'Sixth Preset',
+      config: {
+        keywords: ['Node'],
+        location: 'Remote',
+        modality: ['Remote'] as ('Remote' | 'Hybrid' | 'On-site')[],
+        languages: ['English'],
+        seniority: ['Senior'],
+        datePosted: 'past_week' as const,
+        excludedCompanies: [],
+        platforms: ['linkedin'] as ('linkedin' | 'indeed' | 'computrabajo' | 'bumeran' | 'getonboard' | 'infojobs' | 'greenhouse')[],
+        maxJobsToFind: 50,
+        minScoreToApply: 70,
+        maxApplicationsPerSession: 10,
+      },
+    };
+
+    const existingUser = {
+      presets: [
+        { id: '1', name: 'P1', config: {}, createdAt: new Date() },
+        { id: '2', name: 'P2', config: {}, createdAt: new Date() },
+        { id: '3', name: 'P3', config: {}, createdAt: new Date() },
+        { id: '4', name: 'P4', config: {}, createdAt: new Date() },
+        { id: '5', name: 'P5', config: {}, createdAt: new Date() },
+      ],
+    };
+
+    mockUserModel.findById.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValueOnce(existingUser),
+    });
+
+    await expect(service.createPreset(userId, dto)).rejects.toThrow(ConflictException);
+  });
+
+  // ── SRCH-02: setActivePreset ──────────────────────────────────────────────────
+
+  it('SRCH-02: setActivePreset updates activePresetId on User document', async () => {
+    const userId = 'user-id-123';
+    const presetId = 'preset-uuid-001';
+
+    const existingUser = {
+      presets: [{ id: presetId, name: 'My Preset', config: {}, createdAt: new Date() }],
+    };
+
+    // findById: verify preset exists
+    mockUserModel.findById.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValueOnce(existingUser),
+    });
+
+    const updatedDoc = { _id: userId, activePresetId: presetId };
+    mockUserModel.findOneAndUpdate.mockResolvedValueOnce(updatedDoc);
+
+    const result = await service.setActivePreset(userId, presetId);
+
+    expect(result).toEqual(updatedDoc);
+    expect(mockUserModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: userId },
+      { $set: { activePresetId: presetId } },
+      { new: true }
+    );
+  });
+
+  it('SRCH-02: setActivePreset throws NotFoundException when presetId not found', async () => {
+    const userId = 'user-id-123';
+    const presetId = 'nonexistent-preset';
+
+    const existingUser = {
+      presets: [{ id: 'other-id', name: 'Other Preset', config: {}, createdAt: new Date() }],
+    };
+
+    mockUserModel.findById.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValueOnce(existingUser),
+    });
+
+    await expect(service.setActivePreset(userId, presetId)).rejects.toThrow(NotFoundException);
+  });
 });

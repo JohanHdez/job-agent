@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import type { PlatformId } from '@job-agent/core';
 
 /** Auth providers a user can link to their account */
 export type AuthProvider = 'linkedin' | 'google';
@@ -11,6 +12,36 @@ interface StoredRefreshToken {
   token: string;
   issuedAt: Date;
   expiresAt: Date;
+}
+
+/**
+ * Configuration snapshot stored inside a search preset.
+ * Mirrors AppConfig.search + AppConfig.matching fields.
+ */
+export interface SearchPresetConfig {
+  keywords: string[];
+  location: string;
+  modality: ('Remote' | 'Hybrid' | 'On-site')[];
+  languages: string[];
+  seniority: string[];
+  datePosted: 'past_24h' | 'past_week' | 'past_month';
+  excludedCompanies: string[];
+  platforms: PlatformId[];
+  maxJobsToFind: number;
+  minScoreToApply: number;
+  maxApplicationsPerSession: number;
+  greenhouseCompanies?: string[];
+}
+
+/**
+ * A named search preset embedded in the User document.
+ * Users may have at most 5 presets simultaneously.
+ */
+export interface StoredPreset {
+  id: string;
+  name: string;
+  config: SearchPresetConfig;
+  createdAt: Date;
 }
 
 /**
@@ -30,6 +61,10 @@ export class User {
 
   @Prop()
   headline?: string;
+
+  /** Preferred UI/communication language */
+  @Prop({ enum: ['en', 'es'] })
+  language?: 'en' | 'es';
 
   // ── LinkedIn ────────────────────────────────────────────────────────────────
 
@@ -67,6 +102,33 @@ export class User {
     default: [],
   })
   refreshTokens!: StoredRefreshToken[];
+
+  // ── Search presets ──────────────────────────────────────────────────────────
+
+  /**
+   * Named search presets — at most 5 per user.
+   * Each preset stores a full AppConfig.search + AppConfig.matching snapshot.
+   */
+  @Prop({
+    type: [
+      {
+        id: { type: String, required: true },
+        name: { type: String, required: true },
+        config: { type: Object, required: true },
+        createdAt: { type: Date, required: true },
+      },
+    ],
+    default: [],
+    validate: {
+      validator: (v: unknown[]) => v.length <= 5,
+      message: 'A user cannot have more than 5 search presets',
+    },
+  })
+  presets!: StoredPreset[];
+
+  /** The id of the currently active preset (one of the presets[].id values). */
+  @Prop()
+  activePresetId?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
