@@ -13,7 +13,7 @@ Job Agent evolves from a working CLI automation tool into a multi-user SaaS plat
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - NestJS app scaffold, MongoDB + Redis connectivity, shared types audit, structured logging in DI, global auth guard (completed 2026-03-13)
-- [ ] **Phase 2: Auth + Users** - LinkedIn OAuth, Google OAuth, JWT refresh, per-user profile (CV upload + LinkedIn import), search config presets
+- [x] **Phase 2: Auth + Users** - LinkedIn OAuth, Google OAuth, JWT refresh, per-user profile (CV upload + LinkedIn import), search config presets (completed 2026-03-13)
 - [ ] **Phase 3: Sessions + BullMQ** - POST /sessions endpoint, SSE with MongoDB replay, BullMQ worker process isolated from NestJS, stub pipeline validated end-to-end
 - [ ] **Phase 4: Pipeline — Search + Scoring** - CV parser in worker, multi-platform search, compatibility scoring 0-100, MongoDB deduplication, excluded companies filter, session limit enforcement
 - [ ] **Phase 5: Application Automation** - LinkedIn Easy Apply via worker, email apply via Claude API + SMTP, Redis rate limiter, CAPTCHA detection, application history with manual status
@@ -117,7 +117,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-03-13 |
-| 2. Auth + Users | 0/TBD | Not started | - |
+| 2. Auth + Users | 2/2 | Complete   | 2026-03-13 |
 | 3. Sessions + BullMQ | 0/TBD | Not started | - |
 | 4. Pipeline — Search + Scoring | 0/TBD | Not started | - |
 | 5. Application Automation | 0/TBD | Not started | - |

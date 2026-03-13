@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 02-auth-+-users plan 02-01
-last_updated: "2026-03-13T13:19:08.000Z"
+stopped_at: Completed 02-auth-+-users plan 02-02
+last_updated: "2026-03-13T13:24:54.941Z"
 last_activity: 2026-03-13 — Plan 01-03 complete (CI pipeline — Phase 1 Foundation complete)
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 ---
@@ -68,6 +68,7 @@ Progress: [██░░░░░░░░] 14%
 | Phase 01-foundation P01 | 14 | 3 tasks | 26 files |
 | Phase 01-foundation P03 | 5 | 2 tasks | 1 file |
 | Phase 02-auth-+-users P01 | 6 | 3 tasks | 5 files |
+| Phase 02-auth-+-users P02 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Recent decisions affecting current work:
 - [Phase 02-auth-+-users]: Token-cipher tests set TOKEN_CIPHER_KEY via process.env in beforeAll — avoids needing .env for unit tests
 - [Phase 02-auth-+-users]: profiles.service.test.ts uses pure it.todo() stubs with no ProfilesService import — compiles cleanly before implementation exists
 - [Phase 02-auth-+-users]: Wave 0 pattern: all Phase 2 test files created before implementation so coverage is tracked from day one
+- [Phase 02-auth-+-users]: JwtModuleOptions.publicKey typed as string | Buffer — pass raw PEM string not createPublicKey() KeyObject
+- [Phase 02-auth-+-users]: JWT_SECRET fully removed from source files; JWT_PRIVATE_KEY + JWT_PUBLIC_KEY (base64 PEM) used for RS256
 
 ### Pending Todos
 
@@ -107,6 +110,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T13:19:07.997Z
-Stopped at: Completed 02-auth-+-users plan 02-01
+Last session: 2026-03-13T13:24:54.934Z
+Stopped at: Completed 02-auth-+-users plan 02-02
 Resume file: None
