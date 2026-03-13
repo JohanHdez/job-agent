@@ -15,8 +15,9 @@ export interface JwtPayload {
 /**
  * JWT Bearer strategy — validates the token on every protected request.
  * Token is extracted from the Authorization: Bearer <token> header.
+ * Uses RS256 asymmetric verification with the RSA public key.
  *
- * Required env var: JWT_SECRET
+ * Required env vars: JWT_PRIVATE_KEY, JWT_PUBLIC_KEY (base64-encoded PEM)
  */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -24,7 +25,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env['JWT_SECRET'] ?? 'change-me-in-production',
+      secretOrKey: Buffer.from(
+        process.env['JWT_PUBLIC_KEY'] ?? '',
+        'base64'
+      ).toString('utf8'),
+      algorithms: ['RS256'],
     });
   }
 

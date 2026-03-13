@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { createPrivateKey } from 'crypto';
 import { UsersModule } from '../users/users.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
@@ -13,10 +14,21 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
     UsersModule,
     PassportModule,
     JwtModule.registerAsync({
-      useFactory: () => ({
-        secret: process.env['JWT_SECRET'] ?? 'change-me-in-production',
-        signOptions: { expiresIn: '24h' },
-      }),
+      useFactory: () => {
+        const privPem = Buffer.from(
+          process.env['JWT_PRIVATE_KEY'] ?? '',
+          'base64'
+        ).toString('utf8');
+        const pubPem = Buffer.from(
+          process.env['JWT_PUBLIC_KEY'] ?? '',
+          'base64'
+        ).toString('utf8');
+        return {
+          privateKey: createPrivateKey(privPem),
+          publicKey: pubPem,
+          signOptions: { algorithm: 'RS256', expiresIn: '24h' },
+        };
+      },
     }),
   ],
   controllers: [AuthController],
