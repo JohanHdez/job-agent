@@ -12,8 +12,8 @@ Job Agent evolves from a working CLI automation tool into a multi-user SaaS plat
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [x] **Phase 1: Foundation** - NestJS app scaffold, MongoDB + Redis connectivity, shared types audit, structured logging in DI, global auth guard (completed 2026-03-13)
-- [x] **Phase 2: Auth + Users** - LinkedIn OAuth, Google OAuth, JWT refresh, per-user profile (CV upload + LinkedIn import), search config presets (completed 2026-03-13)
+- [x] **Phase 1: Foundation** - NestJS app scaffold, MongoDB + Redis connectivity, shared types audit, structured logging in DI, global auth guard (completed 2026-03-13)
+- [ ] **Phase 2: Auth + Users** - LinkedIn OAuth, Google OAuth, JWT refresh, per-user profile (CV upload + LinkedIn import), search config presets (gap closure in progress)
 - [ ] **Phase 3: Sessions + BullMQ** - POST /sessions endpoint, SSE with MongoDB replay, BullMQ worker process isolated from NestJS, stub pipeline validated end-to-end
 - [ ] **Phase 4: Pipeline — Search + Scoring** - CV parser in worker, multi-platform search, compatibility scoring 0-100, MongoDB deduplication, excluded companies filter, session limit enforcement
 - [ ] **Phase 5: Application Automation** - LinkedIn Easy Apply via worker, email apply via Claude API + SMTP, Redis rate limiter, CAPTCHA detection, application history with manual status
@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md — Migrate user-service to apps/api, create packages/logger TypeScript source, pin TypeScript monorepo-wide
 - [x] 01-02-PLAN.md — Wire NestJS infrastructure modules (Health, Logger, JwtGuard, CorrelationInterceptor) and write Jest tests
-- [ ] 01-03-PLAN.md — Rewrite CI/CD pipeline with typecheck + Jest coverage + gitleaks gates
+- [x] 01-03-PLAN.md — Rewrite CI/CD pipeline with typecheck + Jest coverage + gitleaks gates
 
 ### Phase 2: Auth + Users
 **Goal**: Users can authenticate via LinkedIn OAuth or Google OAuth, receive JWT access and refresh tokens, import their professional profile (via CV upload or LinkedIn API scan), edit profile fields, configure search preferences, and save up to 5 named presets — all data persisted per-user in MongoDB.
@@ -49,7 +49,13 @@ Plans:
   3. User can import their LinkedIn profile and all work experience, education, and skills fields are populated in under 8 seconds
   4. User can edit profile fields (skills, seniority, languages, experience), save, and the next session uses the updated values
   5. User can create, switch between, and delete up to 5 named search presets; the active preset persists between sessions
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [x] 02-01-PLAN.md — Wave 0 TDD scaffolds: jest.config.ts, test stubs for auth/users/profiles/crypto
+- [x] 02-02-PLAN.md — RS256 JWT migration: auth.module.ts + jwt.strategy.ts + auth.service tests
+- [ ] 02-03-PLAN.md — Users extensions: User schema + UsersService + UsersController (AUTH-04, SRCH-01, SRCH-02)
+- [ ] 02-04-PLAN.md — ProfilesModule: UserProfileSchema + ProfilesService + ProfilesController (PROF-01–04, NF-03, NF-08)
 
 ### Phase 3: Sessions + BullMQ
 **Goal**: Users can start a job search session via POST /sessions and watch real-time progress events in the browser via SSE — with events persisted to MongoDB so a page refresh or reconnect replays missed events from the correct position.
@@ -117,7 +123,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-03-13 |
-| 2. Auth + Users | 2/2 | Complete   | 2026-03-13 |
+| 2. Auth + Users | 2/4 | In progress (gap closure) | - |
 | 3. Sessions + BullMQ | 0/TBD | Not started | - |
 | 4. Pipeline — Search + Scoring | 0/TBD | Not started | - |
 | 5. Application Automation | 0/TBD | Not started | - |
