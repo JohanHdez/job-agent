@@ -38,8 +38,11 @@ describe('HealthController', () => {
         details: { mongodb: { status: 'up' as const } },
       };
 
-      healthCheckService.check.mockResolvedValueOnce(terminusResult);
       mongooseHealthIndicator.pingCheck.mockResolvedValueOnce({ mongodb: { status: 'up' as const } });
+      healthCheckService.check.mockImplementationOnce(async (indicators: Array<() => unknown>) => {
+        for (const indicator of indicators) await indicator();
+        return terminusResult;
+      });
 
       const result = await controller.check();
 
@@ -66,6 +69,41 @@ describe('HealthController', () => {
       healthCheckService.check.mockRejectedValueOnce(new Error('MongoDB connection failed'));
 
       await expect(controller.check()).rejects.toThrow('MongoDB connection failed');
+    });
+
+    it('uses npm_package_version env var when set', async () => {
+      const original = process.env['npm_package_version'];
+      process.env['npm_package_version'] = '2.5.0';
+
+      healthCheckService.check.mockResolvedValueOnce({
+        status: 'ok' as const,
+        info: {},
+        error: {},
+        details: {},
+      });
+
+      const result = await controller.check();
+      expect(result.version).toBe('2.5.0');
+
+      if (original === undefined) delete process.env['npm_package_version'];
+      else process.env['npm_package_version'] = original;
+    });
+
+    it('falls back to 1.0.0 when npm_package_version is not set', async () => {
+      const original = process.env['npm_package_version'];
+      delete process.env['npm_package_version'];
+
+      healthCheckService.check.mockResolvedValueOnce({
+        status: 'ok' as const,
+        info: {},
+        error: {},
+        details: {},
+      });
+
+      const result = await controller.check();
+      expect(result.version).toBe('1.0.0');
+
+      if (original !== undefined) process.env['npm_package_version'] = original;
     });
   });
 });

@@ -2,9 +2,6 @@ import { Controller, Get } from '@nestjs/common';
 import { HealthCheckService, HealthCheck, MongooseHealthIndicator } from '@nestjs/terminus';
 import { Public } from '../../common/decorators/public.decorator.js';
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { version } = require('../../../package.json') as { version: string };
-
 /**
  * Health controller — exposes GET /health as a public endpoint.
  *
@@ -38,7 +35,7 @@ export class HealthController {
     return {
       ...result,
       uptime: process.uptime(),
-      version,
+      version: process.env['npm_package_version'] ?? '1.0.0',
     };
   }
 }
