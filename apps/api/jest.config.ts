@@ -33,6 +33,10 @@ const config: Config = {
   moduleNameMapper: {
     // Strip .js extensions — ts-jest compiles .ts but imports use .js (Node16 module resolution)
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    // Workspace packages not in tsconfig paths — resolve to built dist
+    // rootDir = apps/api/src → ../../../ = workspace root
+    '^@job-agent/core$': '<rootDir>/../../../packages/core/dist/index.js',
+    '^@job-agent/cv-parser$': '<rootDir>/../../../packages/cv-parser/dist/index.js',
     ...(nameMapper ?? {}),
   },
   coverageThreshold: {
