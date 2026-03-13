@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
+import { ProfilesModule } from './modules/profiles/profiles.module.js';
 import { LoggerModule } from './modules/logger/logger.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
@@ -33,6 +34,7 @@ import { CorrelationInterceptor } from './common/interceptors/correlation.interc
     HealthModule,
     UsersModule,
     AuthModule,
+    ProfilesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
