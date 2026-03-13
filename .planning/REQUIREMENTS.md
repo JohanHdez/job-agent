@@ -74,7 +74,7 @@
 - [x] **NF-06**: OAuth tokens and credentials stored encrypted (AES-256-GCM) in MongoDB; never exposed in logs or API responses (RNF-08)
 - [x] **NF-07**: All API routes require valid JWT signed with RS256, 24h expiry; unauthenticated requests return 401 (RNF-09) — HS256 in Phase 1; RS256 deferred to Phase 2
 - [ ] **NF-08**: Personal data (CV, history, email) accessible only by the owner user; row-level security on all MongoDB queries (RNF-10)
-- [ ] **NF-09**: Sensitive env vars (API keys, credentials) never committed to repo; CI/CD fails if secrets detected in code (RNF-11)
+- [x] **NF-09**: Sensitive env vars (API keys, credentials) never committed to repo; CI/CD fails if secrets detected in code (RNF-11)
 - [x] **NF-10**: Unit test coverage >= 70% on packages/shared/types and core NestJS modules; build fails below threshold (RNF-12)
 - [x] **NF-11**: Zero TypeScript errors in strict mode; `any` prohibited throughout codebase; tsc --noEmit returns 0 errors in CI/CD (RNF-13)
 - [x] **NF-12**: All NestJS modules use structured logging (Winston) with correlationId, userId, and ISO timestamp; no console.log in production (RNF-14)
@@ -82,7 +82,7 @@
 - [ ] **NF-14**: Platform fully responsive (mobile-first) from 360px; sidebar collapsible on mobile (RNF-16)
 - [ ] **NF-15**: All errors show clear, actionable messages in UI; no stack traces shown to user; React error boundary; Retry button where applicable (RNF-18)
 - [ ] **NF-16**: Design system: dark background #0f0f14, cards #1a1a24, accent indigo #6366f1, Inter/system-ui typography; Lighthouse Accessibility >= 90 (RNF-19)
-- [ ] **NF-17**: CI/CD with GitHub Actions; merge to main auto-deploys to staging; production deploy requires manual approval (RNF-22)
+- [x] **NF-17**: CI/CD with GitHub Actions; merge to main auto-deploys to staging; production deploy requires manual approval (RNF-22)
 
 ---
 
@@ -160,7 +160,7 @@
 | NF-06 | Phase 1 | Complete |
 | NF-07 | Phase 1 | Complete |
 | NF-08 | Phase 2 | Pending |
-| NF-09 | Phase 1 | Pending |
+| NF-09 | Phase 1 | Complete |
 | NF-10 | Phase 1 | Complete |
 | NF-11 | Phase 1 | Complete |
 | NF-12 | Phase 1 | Complete |
@@ -168,7 +168,7 @@
 | NF-14 | Phase 6 | Pending |
 | NF-15 | Phase 6 | Pending |
 | NF-16 | Phase 6 | Pending |
-| NF-17 | Phase 1 | Pending |
+| NF-17 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 46 total
