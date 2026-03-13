@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Phase 2 context gathered
-last_updated: "2026-03-13T05:00:01.550Z"
+stopped_at: Completed 02-auth-+-users plan 02-01
+last_updated: "2026-03-13T13:19:08.000Z"
 last_activity: 2026-03-13 — Plan 01-03 complete (CI pipeline — Phase 1 Foundation complete)
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 5
+  completed_plans: 4
 ---
 
 ---
@@ -67,6 +67,7 @@ Progress: [██░░░░░░░░] 14%
 *Updated after each plan completion*
 | Phase 01-foundation P01 | 14 | 3 tasks | 26 files |
 | Phase 01-foundation P03 | 5 | 2 tasks | 1 file |
+| Phase 02-auth-+-users P01 | 6 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Recent decisions affecting current work:
 - [Phase 01-03]: No ESLint gate in Phase 1 — deferred per locked decision in CONTEXT.md
 - [Phase 01-03]: ci.yml does NOT handle deploys — deploy-staging.yml and deploy-prod.yml remain separate
 - [Phase 01-03]: gitleaks uses protect mode (push diff only) with GITHUB_TOKEN — fetch-depth: 0 required
+- [Phase 02-auth-+-users]: Token-cipher tests set TOKEN_CIPHER_KEY via process.env in beforeAll — avoids needing .env for unit tests
+- [Phase 02-auth-+-users]: profiles.service.test.ts uses pure it.todo() stubs with no ProfilesService import — compiles cleanly before implementation exists
+- [Phase 02-auth-+-users]: Wave 0 pattern: all Phase 2 test files created before implementation so coverage is tracked from day one
 
 ### Pending Todos
 
@@ -103,6 +107,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T05:00:01.519Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-auth-+-users/02-CONTEXT.md
+Last session: 2026-03-13T13:19:07.997Z
+Stopped at: Completed 02-auth-+-users plan 02-01
+Resume file: None
