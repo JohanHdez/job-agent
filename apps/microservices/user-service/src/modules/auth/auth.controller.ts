@@ -33,10 +33,9 @@ const FRONTEND_URL = process.env['FRONTEND_URL'] ?? 'http://localhost:3000';
  */
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   // ── LinkedIn OAuth ─────────────────────────────────────────────────────────
-
   /**
    * GET /auth/linkedin
    * Redirects the browser to LinkedIn's OAuth consent page.
@@ -72,7 +71,6 @@ export class AuthController {
   }
 
   // ── Google OAuth ───────────────────────────────────────────────────────────
-
   /**
    * GET /auth/google
    * Redirects the browser to Google's OAuth consent page.
@@ -107,7 +105,6 @@ export class AuthController {
   }
 
   // ── JWT token management ───────────────────────────────────────────────────
-
   /**
    * POST /auth/refresh
    * Exchanges a valid refresh token for a new access + refresh token pair.

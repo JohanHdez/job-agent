@@ -1,26 +1,3 @@
-import winston from 'winston';
-import chalk from 'chalk';
+import { createLogger } from '@job-agent/logger';
 
-const LEVEL_COLORS: Record<string, (s: string) => string> = {
-  error: chalk.red,
-  warn: chalk.yellow,
-  info: chalk.blue,
-  debug: chalk.magenta,
-};
-
-const SERVICE = 'linkedin-mcp';
-
-/** Structured logger for the linkedin-mcp package. */
-export const logger = winston.createLogger({
-  level: process.env['LOG_LEVEL'] ?? 'info',
-  format: winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DDTHH:mm:ss.SSSZ' }),
-    winston.format.printf(({ level, message, timestamp }) => {
-      const ts  = chalk.gray(String(timestamp));
-      const svc = chalk.cyan(`[${SERVICE}]`);
-      const lvl = (LEVEL_COLORS[level] ?? chalk.white)(level.toUpperCase());
-      return `${ts} ${svc} ${lvl} ${String(message)}`;
-    }),
-  ),
-  transports: [new winston.transports.Console()],
-});
+export const logger = createLogger('linkedin-mcp');

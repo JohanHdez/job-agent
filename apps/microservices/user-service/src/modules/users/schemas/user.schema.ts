@@ -32,7 +32,6 @@ export class User {
   headline?: string;
 
   // ── LinkedIn ────────────────────────────────────────────────────────────────
-
   /** LinkedIn profile ID (from OAuth) */
   @Prop({ sparse: true, index: true })
   linkedinId?: string;
@@ -45,13 +44,11 @@ export class User {
   linkedinAccessToken?: string;
 
   // ── Google ──────────────────────────────────────────────────────────────────
-
   /** Google profile ID (from OAuth) */
   @Prop({ sparse: true, index: true })
   googleId?: string;
 
   // ── JWT refresh tokens ──────────────────────────────────────────────────────
-
   /**
    * Active refresh tokens for this user.
    * Stored in MongoDB (Redis-ready: can be migrated to Redis with TTL index).

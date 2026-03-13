@@ -31,7 +31,7 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService
-  ) {}
+  ) { }
 
   /**
    * Issues a new access + refresh token pair for a user.

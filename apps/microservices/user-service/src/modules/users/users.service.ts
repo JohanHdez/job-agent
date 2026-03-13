@@ -26,7 +26,7 @@ export interface UpsertGoogleUserDto {
  */
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private readonly userModel: Model<UserDocument>) {}
+  constructor(@InjectModel(User.name) private readonly userModel: Model<UserDocument>) { }
 
   /**
    * Creates or updates a user from a LinkedIn OAuth callback.

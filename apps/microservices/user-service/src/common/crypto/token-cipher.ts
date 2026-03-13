@@ -31,7 +31,6 @@ export function decryptToken(encoded: string): string {
   const key = resolveKey();
   const parts = encoded.split(':');
   if (parts.length !== 3) throw new Error('Invalid encrypted token format');
-
   const [ivHex, tagHex, cipherHex] = parts as [string, string, string];
   const iv = Buffer.from(ivHex, 'hex');
   const authTag = Buffer.from(tagHex, 'hex');
@@ -49,7 +48,7 @@ function resolveKey(): Buffer {
   if (hex.length !== 64) {
     throw new Error(
       'TOKEN_CIPHER_KEY must be a 64-character hex string (32 bytes). ' +
-        'Generate with: node -e "process.stdout.write(require(\'crypto\').randomBytes(32).toString(\'hex\') + \'\\n\')"'
+      'Generate with: node -e "process.stdout.write(require(\'crypto\').randomBytes(32).toString(\'hex\') + \'\\n\')"'
     );
   }
   return Buffer.from(hex, 'hex');
