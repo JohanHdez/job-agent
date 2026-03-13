@@ -8,6 +8,41 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>" />
   <style>
     /* ── Progress-specific styles ───────────────────────────────── */
+
+    /* Real-time counters */
+    .counters-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .counter-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1rem;
+      text-align: center;
+    }
+    .counter-card.applied { border-color: rgba(74,222,128,0.3); }
+    .counter-card.skipped  { border-color: rgba(251,191,36,0.25); }
+    .counter-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1;
+      margin-bottom: 0.35rem;
+      transition: transform 0.15s ease;
+    }
+    .counter-card.applied .counter-value { color: #4ade80; }
+    .counter-card.skipped .counter-value  { color: #fbbf24; }
+    .counter-value.bump { transform: scale(1.25); }
+    .counter-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
     .progress-card {
       background: var(--bg-surface);
       border: 1px solid var(--border);
@@ -156,6 +191,22 @@
     <p class="page-description" id="status-description">
       The agent is running — searching jobs and applying on your behalf.
     </p>
+
+    <!-- Real-time counters -->
+    <div class="counters-row" id="counters-row">
+      <div class="counter-card">
+        <div class="counter-value" id="cnt-found">0</div>
+        <div class="counter-label">Jobs Found</div>
+      </div>
+      <div class="counter-card applied">
+        <div class="counter-value" id="cnt-applied">0</div>
+        <div class="counter-label">Applied</div>
+      </div>
+      <div class="counter-card skipped">
+        <div class="counter-value" id="cnt-skipped">0</div>
+        <div class="counter-label">Skipped</div>
+      </div>
+    </div>
 
     <!-- Progress bar card -->
     <div class="progress-card" id="progress-card">

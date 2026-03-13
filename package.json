@@ -5,16 +5,21 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "apps/microservices/*",
+    "apps/api"
   ],
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
     "start": "npm run build && node apps/cli/dist/index.js",
     "install:browsers": "node node_modules/playwright/cli.js install chromium chromium-headless-shell",
     "build": "npm run build -w packages/core && npm run build -w packages/cv-parser && npm run build -w packages/linkedin-mcp && npm run build -w packages/job-search && npm run build -w packages/ats-apply && npm run build -w packages/reporter && npm run build -w packages/api && npm run build -w apps/cli",
-    "dev": "concurrently \"npm run dev -w packages/core\" \"npm run dev -w packages/cv-parser\" \"npm run dev -w packages/linkedin-mcp\" \"npm run dev -w packages/job-search\" \"npm run dev -w packages/api\"",
-    "lint": "eslint packages/**/src/**/*.ts apps/**/src/**/*.ts",
-    "clean": "rimraf packages/*/dist apps/*/dist packages/*/tsconfig.tsbuildinfo"
+    "dev": "concurrently \"npm run dev -w packages/core\" \"npm run dev -w packages/cv-parser\" \"npm run dev -w packages/linkedin-mcp\" \"npm run dev -w packages/job-search\" \"npm run dev -w packages/api\" \"npm run dev -w @job-agent/user-service\"",
+    "dev:services": "concurrently \"npm run dev -w packages/api\" \"npm run dev -w @job-agent/api\"",
+    "typecheck": "npm run build -w packages/core && npm run build -w packages/cv-parser && npm run build -w packages/linkedin-mcp && npm run build -w packages/job-search && npm run build -w packages/ats-apply && npm run build -w packages/reporter && tsc --noEmit -p packages/api/tsconfig.json && tsc --noEmit -p apps/cli/tsconfig.json && tsc --noEmit -p apps/microservices/user-service/tsconfig.json && tsc --noEmit -p apps/api/tsconfig.json",
+    "test": "echo 'No tests yet — add Vitest/Jest test suites to enable this gate' && exit 0",
+    "lint": "eslint \"packages/**/src/**/*.ts\" \"apps/**/src/**/*.ts\" --ignore-pattern \"**/*.test.ts\" --ignore-pattern \"**/*.test.tsx\"",
+    "clean": "rimraf packages/*/dist apps/*/dist packages/*/tsconfig.tsbuildinfo apps/microservices/*/dist"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.0.0",
@@ -22,7 +27,10 @@
     "concurrently": "^8.2.2",
     "eslint": "^8.57.0",
     "rimraf": "^5.0.5",
-    "typescript": "^5.4.5"
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "typescript": "5.9.3"
   },
   "engines": {
     "node": ">=18.0.0"

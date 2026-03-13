@@ -11,7 +11,7 @@
 
 // ── Patterns ──────────────────────────────────────────────────────────────────
 
-const EMAIL_REGEX = /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g;
+const EMAIL_REGEX = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
 
 /**
  * Substrings that indicate a system / non-apply address.
@@ -101,7 +101,7 @@ export function detectApplyEmail(description: string): string | null {
 
   // Return first email from the highest-priority non-empty bucket
   for (const bucket of buckets) {
-    if (bucket.length > 0) return bucket[0]!;
+    if (bucket.length > 0) return bucket[0] ?? null;
   }
 
   return null;

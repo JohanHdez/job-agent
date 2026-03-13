@@ -67,7 +67,7 @@ cvRouter.get('/', async (_req: Request, res: Response) => {
       return;
     }
 
-    const cvFile = cvFiles[0]!;
+    const cvFile = cvFiles[0] ?? '';
     const stat = await fs.stat(path.join(CV_DIR, cvFile));
 
     res.json({
@@ -94,19 +94,25 @@ cvRouter.post('/upload', upload.single('cv'), async (req: Request, res: Response
   logger.info(`CV uploaded: ${req.file.originalname} → ${req.file.path}`);
 
   // Parse CV immediately so the UI can auto-fill the search form
-  let profile: ProfessionalProfile | null = null;
+  await fs.mkdir(OUTPUT_DIR, { recursive: true });
+
+  let profile: ProfessionalProfile;
   try {
-    await fs.mkdir(OUTPUT_DIR, { recursive: true });
     const { runCvParser } = await import('@job-agent/cv-parser');
     profile = await runCvParser(req.file.path, path.join(OUTPUT_DIR, 'profile.json'));
     logger.info(`CV parsed: ${profile.fullName} | ${profile.seniority} | ${profile.skills.length} skills`);
   } catch (err) {
-    logger.warn(`CV parsing skipped: ${err instanceof Error ? err.message : String(err)}`);
+    // Delete the file so the user can retry with a valid one
+    await fs.unlink(req.file.path).catch(() => undefined);
+    throw new ApiError(
+      422,
+      `Could not extract text from the uploaded file: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
 
   res.json({
     success: true,
-    message: 'CV uploaded successfully',
+    message: 'CV uploaded and parsed successfully',
     fileName: req.file.filename,
     sizeBytes: req.file.size,
     profile,
