@@ -2,26 +2,30 @@ import {
   Controller,
   Get,
   Post,
+  Body,
   Req,
   Res,
-  Body,
   UseGuards,
-  UnauthorizedException,
   HttpCode,
+  UnauthorizedException,
 } from '@nestjs/common';
-import type { Request, Response } from 'express';
 import { Types } from 'mongoose';
+import { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
 import { LinkedInAuthGuard } from './guards/linkedin-auth.guard.js';
 import { GoogleAuthGuard } from './guards/google-auth.guard.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
-import type { UserDocument } from '../users/schemas/user.schema.js';
+import { UserDocument } from '../users/schemas/user.schema.js';
+
+interface RefreshBody {
+  refreshToken?: string;
+}
 
 interface AuthenticatedRequest extends Request {
   user: UserDocument;
 }
 
-const FRONTEND_URL = process.env['FRONTEND_URL'] ?? 'http://localhost:5173';
+const FRONTEND_URL = process.env['FRONTEND_URL'] ?? 'http://localhost:3000';
 
 /**
  * Auth controller — handles all OAuth flows and JWT token management.
@@ -29,7 +33,7 @@ const FRONTEND_URL = process.env['FRONTEND_URL'] ?? 'http://localhost:5173';
  */
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   // ── LinkedIn OAuth ─────────────────────────────────────────────────────────
   /**
@@ -51,7 +55,7 @@ export class AuthController {
   @UseGuards(LinkedInAuthGuard)
   async linkedinCallback(
     @Req() req: AuthenticatedRequest,
-    @Res() res: Response,
+    @Res() res: Response
   ): Promise<void> {
     try {
       const tokens = await this.authService.issueTokens(req.user);
@@ -85,7 +89,7 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   async googleCallback(
     @Req() req: AuthenticatedRequest,
-    @Res() res: Response,
+    @Res() res: Response
   ): Promise<void> {
     try {
       const tokens = await this.authService.issueTokens(req.user);
@@ -108,9 +112,7 @@ export class AuthController {
    */
   @Post('refresh')
   @HttpCode(200)
-  async refresh(
-    @Body() body: { refreshToken?: string },
-  ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
+  async refresh(@Body() body: RefreshBody) {
     if (!body.refreshToken) {
       throw new UnauthorizedException('refreshToken is required');
     }
@@ -127,14 +129,12 @@ export class AuthController {
   @HttpCode(200)
   async logout(
     @Req() req: AuthenticatedRequest,
-    @Body() body: { refreshToken?: string },
-  ): Promise<{ success: boolean; message: string }> {
+    @Body() body: RefreshBody
+  ) {
     if (body.refreshToken) {
       await this.authService.revokeToken(
-        req.user._id instanceof Types.ObjectId
-          ? req.user._id.toHexString()
-          : String(req.user._id),
-        body.refreshToken,
+        req.user._id instanceof Types.ObjectId ? req.user._id.toHexString() : String(req.user._id),
+        body.refreshToken
       );
     }
     return { success: true, message: 'Logged out successfully' };
@@ -147,20 +147,10 @@ export class AuthController {
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@Req() req: AuthenticatedRequest): {
-    id: string;
-    email: string;
-    name: string;
-    photo: string | undefined;
-    headline: string | undefined;
-    providers: { linkedin: boolean; google: boolean };
-  } {
+  me(@Req() req: AuthenticatedRequest) {
     const user = req.user;
     return {
-      id:
-        user._id instanceof Types.ObjectId
-          ? user._id.toHexString()
-          : String(user._id),
+      id: user._id instanceof Types.ObjectId ? user._id.toHexString() : String(user._id),
       email: user.email,
       name: user.name,
       photo: user.photo,

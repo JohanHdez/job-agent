@@ -20,7 +20,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, GoogleStrategy, LinkedInStrategy, JwtStrategy],
+  providers: [AuthService, LinkedInStrategy, GoogleStrategy, JwtStrategy],
   exports: [AuthService, JwtModule],
 })
-export class AuthModule {}
+export class AuthModule { }

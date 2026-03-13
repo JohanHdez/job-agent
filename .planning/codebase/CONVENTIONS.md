@@ -1,301 +1,363 @@
 # Coding Conventions
 
-**Analysis Date:** 2025-03-10
+**Analysis Date:** 2026-03-11
 
 ## Naming Patterns
 
 **Files:**
-- `kebab-case` for all file and folder names
-- Service files: `service-name.ts` (e.g., `sleep.ts`, `logger.ts`)
-- Handler files: `[domain].handler.ts` (e.g., `email.handler.ts`, `greenhouse.handler.ts`)
-- Middleware files: `[feature].middleware.ts` (e.g., `error.middleware.ts`, `correlation.middleware.ts`)
-- Route files: `[resource].routes.ts` (e.g., `config.routes.ts`, `cv.routes.ts`)
-- Detector files: `[type]-detector.ts` (e.g., `ats-detector.ts`, `email-detector.ts`)
-- Constants files: `[domain].constants.ts` (e.g., `selectors.constants.ts`)
-- Type definition files: `[domain].types.ts` (e.g., `config.types.ts`, `job.types.ts`)
+- `kebab-case` for all filenames: `job-matcher.ts`, `error.middleware.ts`, `correlation.middleware.ts`
+- Example: `packages/linkedin-mcp/src/scoring/job-matcher.ts`, `packages/api/src/middleware/error.middleware.ts`
 
 **Functions:**
-- `camelCase` for function and method names
-- Async functions: no special prefix, use `async` keyword
-- Helper functions: lowercase prefix or underscore convention
-- Example from `packages/ats-apply/src/utils/sleep.ts`: `sleep(minMs, maxMs)`
+- `camelCase` for function names: `scoreJob()`, `rankJobs()`, `createLogger()`, `toId()`, `devFormat()`, `jsonFormat()`
+- Named export format: `export function functionName() { ... }`
+- Example from `packages/linkedin-mcp/src/scoring/job-matcher.ts`:
+```typescript
+export function scoreJob(job: JobListing, profile: ProfessionalProfile): JobListing { ... }
+export function rankJobs(jobs: JobListing[], profile: ProfessionalProfile, minScore = 0): JobListing[] { ... }
+```
 
 **Variables:**
-- `camelCase` for all variable and parameter names
-- Const objects and modules: `camelCase` (not UPPER_SNAKE_CASE)
-- Request/response: `req`, `res` (Express conventions)
-- Example: `const correlationId = crypto.randomUUID()`
+- `camelCase` for local variables: `skillScore`, `seniorityScore`, `profileRank`, `titleLower`, `inferredRank`
+- Constants: `UPPER_SNAKE_CASE` with `_CONSTANT` suffix
+- Example from `packages/linkedin-mcp/src/scoring/job-matcher.ts`:
+```typescript
+const WEIGHTS = {
+  skillsMatch: 0.50,
+  seniorityMatch: 0.25,
+  keywordMatch: 0.15,
+  locationMatch: 0.10,
+} as const;
 
-**Types and Interfaces:**
-- `PascalCase` for interface/type names
-- No `I` prefix — use descriptive suffixes instead
-- Naming conventions:
-  - Interfaces: `[Domain]Type` or generic interface name (e.g., `AppConfig`, `JobListing`)
-  - Type unions: `[Domain]Status` or `[Domain]Method` (e.g., `ApplicationStatus`, `ApplicationMethod`)
-  - Enum-like types: `[Domain][Attribute]` (e.g., `PlatformId`)
-  - Generic types: `[Name]Params`, `[Name]Result` (e.g., `EmailApplyParams`, `EmailApplyResult`)
-- Examples from codebase:
-  - `interface AppConfig { ... }` (not `IAppConfig`)
-  - `type ApplicationStatus = 'applied' | 'failed' | ...`
-  - `interface JobListing { ... }`
-  - `type PlatformId = 'linkedin' | 'indeed' | ...`
+const SENIORITY_RANK: Record<ProfessionalProfile['seniority'], number> = { ... };
 
-**Constants:**
-- `UPPER_SNAKE_CASE` for constants
-- Use `as const` for type safety on selector/config objects
-- Example from `packages/linkedin-mcp/src/browser/selectors.constants.ts`:
-  ```typescript
-  export const SELECTORS = { ... } as const;
-  export const LINKEDIN_URLS = { ... } as const;
-  ```
+const ACCESS_TOKEN_TTL_SECONDS = 24 * 60 * 60;
+const REFRESH_TOKEN_TTL_DAYS = 7;
+```
 
-**Classes:**
-- `PascalCase` for class names
-- Example: `ApiError extends Error { ... }`
+**Types/Interfaces:**
+- `PascalCase` with explicit `Type` or `Interface` suffix (no `I` prefix)
+- Examples: `JobListing`, `ProfessionalProfile`, `ApiError`, `TokenPairDto`, `StructuredLogEntry`, `RequestContext`, `Feature` (inline interfaces)
+- From `apps/microservices/user-service/src/modules/auth/auth.service.ts`:
+```typescript
+export interface TokenPairDto {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+```
+
+**Classes/Services:**
+- `PascalCase`: `AuthService`, `JobMatcherService`
+- Example from `apps/microservices/user-service/src/modules/auth/auth.service.ts`:
+```typescript
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly usersService: UsersService
+  ) {}
+}
+```
+
+**React Components:**
+- `PascalCase` filename and component function: `App.tsx`, `LandingPage.tsx`, `LoginPage.tsx`, `ConfigPage.tsx`
+- Typed with `React.FC`: `const App: React.FC = () => <Outlet />;`
+- Example from `apps/web/src/App.tsx`:
+```typescript
+const App: React.FC = () => <Outlet />;
+export default App;
+```
+
+**Enums (implicit):**
+- String literal unions for enumerations
+- Example from core types: `type ApplicationStatusType = 'applied' | 'failed' | 'skipped' | 'already_applied';`
 
 ## Code Style
 
 **Formatting:**
-- TypeScript with strict mode enabled
-- Target: ES2022 with Node16 module resolution
-- Tab width: not specified (use project default)
-- Linting enforces consistency via ESLint
+- **No dedicated prettier config at root** — relies on ESLint alone
+- Consistent spacing: 2 spaces, not tabs
+- Line length: No hard enforced limit, but keep lines readable
+- Semicolons: Required on all statements
 
 **Linting:**
-- Tool: ESLint 8.57.0 with `@typescript-eslint/parser` and `@typescript-eslint/eslint-plugin`
-- Config file: `.eslintrc.js` (root level)
-- Key enforced rules:
-  - `@typescript-eslint/no-explicit-any`: **FORBIDDEN** — use `unknown` with type guards instead
-  - `@typescript-eslint/no-unsafe-*`: All unsafe operations forbidden (`assignment`, `call`, `member-access`, `return`, `argument`)
-  - `no-console`: **FORBIDDEN** in application code — use structured logger instead
-    - Exception: `apps/cli/src/**/*.ts` allowed (CLI output via `chalk`)
-    - Exception: `*.js` and `*.cjs` files allowed (build scripts)
-  - `@typescript-eslint/use-unknown-in-catch-callback-variable`: Typed catch blocks required
-  - `@typescript-eslint/no-floating-promises`: All promises must be awaited or explicitly handled
-  - `@typescript-eslint/no-misused-promises`: Async handlers allowed in Express/Node callbacks (with `checksVoidReturn: { arguments: false, properties: false }`)
-  - `@typescript-eslint/no-require-imports`: Forbidden in `.ts` files (use ES modules)
-  - `@typescript-eslint/no-unused-vars`: Unused variables forbidden except those prefixed with `_`
-    - Example: `(err: unknown, _req: Request, res: Response, _next: NextFunction)`
+- **Tool:** ESLint with TypeScript parser (`@typescript-eslint`)
+- **Config file:** `.eslintrc.js` at repository root
+- **Key enabled rules:**
+  - `@typescript-eslint/no-explicit-any`: **STRICT ERROR** — use `unknown` + type guards
+  - `@typescript-eslint/no-unsafe-assignment/call/member-access/return/argument`: All **STRICT ERROR** — prevents implicit `any`
+  - `no-console`: **ERROR** in application code (disabled for CLI + config scripts)
+  - `@typescript-eslint/use-unknown-in-catch-callback-variable`: **ERROR** — typed catch blocks mandatory
+  - `@typescript-eslint/no-floating-promises`: **ERROR** — all async operations awaited
+  - `@typescript-eslint/no-require-imports`: **ERROR** in TypeScript files
+  - `@typescript-eslint/no-unused-vars`: **ERROR** with `argsIgnorePattern: '^_'` for intentional unused params (e.g., Express error handlers)
 
-**TypeScript Configuration:**
-- Strict mode: `true`
-- `noImplicitAny`: `true`
-- `strictNullChecks`: `true`
-- `noUnusedLocals`: `true`
-- `noUnusedParameters`: `true`
-- `noImplicitReturns`: `true`
-- `exactOptionalPropertyTypes`: `true`
-- Source maps and declaration maps generated for debugging
-- Location: `tsconfig.base.json` (workspace root)
+**CLI Override:**
+- Files in `apps/cli/src/**/*.ts`: `no-console` disabled (allows chalk logging)
+
+**Config/Build Override:**
+- Root-level `.js` and `.cjs` files: all unsafe rules disabled (Node environment)
+
+**Run linting:**
+```bash
+npm run lint
+```
 
 ## Import Organization
 
 **Order:**
-1. Node.js built-in modules (`fs`, `path`, `async_hooks`, etc.)
-2. External packages (`express`, `winston`, `dotenv`, etc.)
-3. Internal type imports (`@job-agent/core`, `@job-agent/logger`, etc.)
-4. Local relative imports (`./utils/logger.js`, `../middleware/error.middleware.js`)
-5. Type-only imports grouped at the top with `import type { ... }`
+1. Node.js/external standard library imports (`path`, `crypto`, `child_process`, etc.)
+2. External npm packages (`react`, `express`, `winston`, `mongoose`, etc.)
+3. Internal workspace imports via npm aliases (`@job-agent/core`, `@shared/types`, etc.)
+4. Relative local imports (`.js` extensions required for ESM)
+
+**Example from `packages/api/src/common/logger/index.ts`:**
+```typescript
+import { AsyncLocalStorage } from 'async_hooks';
+import winston from 'winston';
+import chalk from 'chalk';
+```
+
+**Example from `apps/microservices/user-service/src/modules/auth/auth.service.ts`:**
+```typescript
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { randomBytes } from 'crypto';
+import { Types } from 'mongoose';
+import { UsersService } from '../users/users.service.js';
+import { UserDocument } from '../users/schemas/user.schema.js';
+import type { JwtPayload } from './strategies/jwt.strategy.js';
+```
 
 **Path Aliases:**
-- Monorepo uses npm workspaces with `@job-agent/` namespace
-- All packages exported as:
-  - `@job-agent/core` — shared types (`config.types.ts`, `job.types.ts`, `cv.types.ts`)
-  - `@job-agent/logger` — structured logging factory
-  - `@job-agent/cv-parser` — CV parsing utilities
-  - `@job-agent/linkedin-mcp` — LinkedIn Playwright tools
-  - `@job-agent/job-search` — job searching and scoring
-  - `@job-agent/ats-apply` — ATS and email application handlers
-  - `@job-agent/reporter` — report generation
-  - `@job-agent/api` — Express API routes and middleware
-- **Mandatory:** Cross-boundary imports MUST use workspace aliases, never relative paths
-  - ✅ `import type { JobListing } from '@job-agent/core'`
-  - ❌ `import { JobListing } from '../../../packages/core/src/types/job.types'`
+- Mandatory use of workspace aliases for cross-boundary imports
+- `@job-agent/core` → `packages/core/src/index.ts`
+- `@job-agent/*` pattern for all packages
+- **NEVER** relative path imports across domain boundaries (e.g., `../../packages/...`)
 
-**ES Modules:**
-- All packages use `"type": "module"` in `package.json`
-- Imports must include `.js` extension: `import { ... } from './file.js'`
-- Exception: Type-only imports can omit extension (TypeScript handles)
+**File Extensions:**
+- ESM imports use `.js` extension (TypeScript output): `import { AuthService } from './auth.service.js';`
+- `type` imports for TypeScript-only types: `import type { JwtPayload } from './strategies/jwt.strategy.js';`
 
 ## Error Handling
 
 **Patterns:**
-- Custom error class: `ApiError` with typed `statusCode` property
-  - Located in `packages/api/src/middleware/error.middleware.ts`
-  - Constructor: `new ApiError(statusCode: number, message: string)`
-  - Example:
-    ```typescript
-    if (!host || !user || !pass) {
-      throw new Error('SMTP not configured. Please set SMTP_HOST...');
-    }
-    if (!Array.isArray(config.search?.keywords)) {
-      throw new ApiError(400, 'search.keywords must be an array');
-    }
-    ```
-- Async functions: **all must have try/catch blocks with typed error handling**
-  - Catch blocks receive `unknown` — use type guards
-  - Example from `packages/api/src/routes/config.routes.ts`:
-    ```typescript
-    try {
-      const raw = await fs.readFile(CONFIG_PATH, 'utf-8');
-      const config = yaml.load(raw) as AppConfig;
-      res.json({ config });
-    } catch {
-      // Graceful fallback
-      res.json({ config: null, message: 'No config found' });
-    }
-    ```
-- Error middleware (Express): must be registered **LAST** in middleware chain
-  - Signature: `(err: unknown, _req: Request, res: Response, _next: NextFunction) => void`
-  - Logs via structured logger before sending response
+- **Custom Error Classes:** Extend `Error` with typed properties
+  - Example from `packages/api/src/middleware/error.middleware.ts`:
+```typescript
+export class ApiError extends Error {
+  constructor(
+    public readonly statusCode: number,
+    message: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+```
+
+- **Try/Catch Type Guard:** Always catch `unknown`, guard via `instanceof` checks
+  - Example from `packages/api/src/middleware/error.middleware.ts`:
+```typescript
+if (err instanceof ApiError) {
+  logger.warn(`ApiError ${err.statusCode}: ${err.message}`);
+  res.status(err.statusCode).json({ error: err.message });
+  return;
+}
+
+const message = err instanceof Error ? err.message : 'Internal server error';
+logger.error(`Unhandled error: ${message}`);
+```
+
+- **Express Error Middleware:** Centralized error handler registered LAST in middleware chain
+  - Function signature: `(err: unknown, _req: Request, res: Response, _next: NextFunction)`
+  - Unused params prefixed with `_`
+
+- **Async/Await:** All async operations awaited; no floating promises
+  - Example: `await this.jwtService.sign(...)`
+  - ESLint rule `@typescript-eslint/no-floating-promises` enforces this
 
 ## Logging
 
-**Framework:** Winston 3.x with structured logging factory in `@job-agent/logger`
+**Framework:** Winston in microservices/API, structured logging via `createLogger()` factory
 
-**Usage Pattern:**
-```typescript
-import { createLogger } from '@job-agent/logger';
+**Approach:**
+- Centralized logger factory: `packages/api/src/common/logger/index.ts`
+- Automatic context injection via `AsyncLocalStorage<RequestContext>`:
+  - `correlationId`: Request tracking ID (auto-generated)
+  - `userId`: Authenticated user (when available)
+  - Service name (bound at logger creation)
+  - ISO timestamp
 
-const logger = createLogger('service-name');
-logger.info('Event happened', { contextKey: value });
-logger.warn('Warning message');
-logger.error('Error occurred');
+**Format:**
+- **Development:** Human-readable with colors (`chalk`)
+  - `[HH:mm:ss] [SERVICE] [correlationId uid=?] LEVEL message {meta}`
+  - Example: `[14:32:15] [api] [uuid-1234] info Server started { port: 3000 }`
+
+- **Production:** JSON for log aggregators
+```json
+{
+  "timestamp": "2026-03-11T14:32:15.123Z",
+  "level": "info",
+  "service": "api",
+  "correlationId": "uuid-1234",
+  "userId": "user-567",
+  "message": "Server started",
+  "port": 3000
+}
 ```
 
-**Structured Log Entry Shape:**
-- `timestamp` (ISO 8601)
-- `level` ('error', 'warn', 'info', 'debug', 'verbose')
-- `service` (string, passed at logger creation)
-- `correlationId` (UUID v4, auto-injected via `AsyncLocalStorage`)
-- `userId` (optional, auto-injected via `AsyncLocalStorage`)
-- `message` (string)
-- Additional metadata fields (passed as second argument)
+**Usage:**
+```typescript
+const logger = createLogger('api');
+logger.info('Server started', { port: 3000 });
+logger.warn('Rate limit approaching', { userId, remaining: 2 });
+logger.error(`Unhandled error: ${message}`);
+logger.debug(`Score for "${job.title}": ${score}`);
+```
 
-**Output Format:**
-- **Development** (`NODE_ENV !== 'production'`): Human-readable with colors via `chalk`
-  - Example: `[HH:mm:ss] [service] [correlationId uid=123] INFO message {meta}`
-- **Production** (`NODE_ENV === 'production'`): JSON for log aggregators (Datadog, Loki, etc.)
+**Levels:** `error`, `warn`, `info`, `debug`, `verbose` (configurable via `LOG_LEVEL` env var)
 
-**Request Correlation:**
-- Every HTTP request receives a UUID v4 `correlationId` via `correlationMiddleware`
-- Stored in `AsyncLocalStorage` — automatically injected into all logger calls in that request's async chain
-- Returned in `X-Correlation-Id` response header for client tracing
-
-**Console Usage:**
-- ❌ **FORBIDDEN** in microservices, utilities, and shared packages
-  - Violation caught by ESLint: `'no-console': 'error'`
-- ✅ **ALLOWED** in `apps/cli/` (CLI output via `chalk`)
+**CLI Output:** Use `chalk` for colored console output
+- `chalk.blue('[INFO]')` for information
+- `chalk.green('[OK]')` for success
+- `chalk.yellow('[WARN]')` for warnings
+- `chalk.red('[ERROR]')` for errors
+- Example from `apps/cli/src/index.ts`:
+```typescript
+process.stdout.write(chalk.blue('[INFO]') + ' Starting API server...\n');
+process.stdout.write(chalk.green('[OK]') + ` Opening ${chalk.cyan(API_URL)} in your browser...\n`);
+```
 
 ## Comments
 
 **When to Comment:**
-- JSDoc on all public functions and exported interfaces
-- Inline comments for non-obvious logic or workarounds
-- Section headers with visual dividers (common in codebase):
-  ```typescript
-  // ─── Authentication ────────────────────────────────────────────────────────
-  // ─── Job Search ────────────────────────────────────────────────────────────
-  // ─── Routes ────────────────────────────────────────────────────────────────
-  ```
+- Complex algorithms explaining the "why" (not the "what")
+- Non-obvious mathematical formulas or constants
+- Business logic decisions
+- Performance-critical sections
+- Gotchas or workarounds
+- Example from `packages/linkedin-mcp/src/scoring/job-matcher.ts`:
+```typescript
+// When no required skills are listed, give benefit of the doubt (0.7)
+// rather than a neutral 0.5 — the candidate is likely qualified if they
+// passed keyword/seniority filters and the job simply has no structured skills.
+const skillScore =
+  jobSkills.length > 0 ? matchedSkills.length / jobSkills.length : 0.7;
+```
 
 **JSDoc/TSDoc:**
-- Mandatory on all public functions, interfaces, and exported items
-- Use `/**  ... */` block comments
-- Include:
-  - One-line summary
-  - Parameter descriptions with types (TypeScript infers, but document intent)
-  - Return type description
-  - Example usage or important context
-- Example from `packages/ats-apply/src/utils/sleep.ts`:
-  ```typescript
-  /**
-   * Resolves after a random delay between minMs and maxMs.
-   * Used to avoid rate-limiting when submitting multiple applications.
-   */
-  export function sleep(minMs = 3000, maxMs = 5000): Promise<void> { ... }
-  ```
-- Example from `packages/api/src/middleware/error.middleware.ts`:
-  ```typescript
-  /**
-   * Express error-handling middleware.
-   * Must be registered LAST in the middleware chain.
-   */
-  export function errorMiddleware(
-    err: unknown,
-    _req: Request,
-    res: Response,
-    _next: NextFunction
-  ): void { ... }
-  ```
+- Mandatory on all public functions and exported interfaces
+- Describe parameters with `@param`, return value with `@returns`
+- Example from `packages/linkedin-mcp/src/scoring/job-matcher.ts`:
+```typescript
+/**
+ * Computes a 0–100 compatibility score between a job listing and a candidate profile.
+ *
+ * Scoring breakdown:
+ * - 50%: skill/tech stack overlap
+ * - 25%: seniority level alignment
+ * - 15%: keyword presence in title and description
+ * - 10%: remote/hybrid modality preference
+ *
+ * @param job - The job listing to score.
+ * @param profile - The candidate's professional profile.
+ * @returns The same job listing with compatibilityScore populated (0-100).
+ */
+export function scoreJob(job: JobListing, profile: ProfessionalProfile): JobListing { ... }
+```
+
+**Section Headers:** Use ASCII separators for logical blocks
+```typescript
+// ── 1. Skills match (50%) ────────────────────────────────────────────────
+// ── 2. Seniority match (25%) ─────────────────────────────────────────────
+// ── Format helpers ────────────────────────────────────────────────────────
+// ── Factory ───────────────────────────────────────────────────────────────
+```
 
 ## Function Design
 
-**Size:** Keep functions focused and single-responsibility. Extract helpers for clarity.
+**Size:**
+- Keep functions focused on a single responsibility
+- Aim for <50 lines per function; break larger logic into helpers
+- Example: `scoreJob()` stays compact with semantic steps marked by section comments
 
 **Parameters:**
-- Typed explicitly
-- Use object destructuring for multiple parameters (> 2)
-- Example from `packages/ats-apply/src/handlers/email.handler.ts`:
-  ```typescript
-  export interface EmailApplyParams {
-    toEmail: string;
-    profile: ProfessionalProfile;
-    job: JobListing;
-    cvPath: string;
-    config: AppConfig;
-  }
-  export async function applyViaEmail(params: EmailApplyParams): Promise<EmailApplyResult> {
-    const { toEmail, profile, job, cvPath, config } = params;
-  ```
+- Use explicit typed parameters (no `any`)
+- Optional parameters with defaults: `minScore = 0`
+- No parameter reassignment; create new variables if transformation needed
+- Example:
+```typescript
+export function rankJobs(
+  jobs: JobListing[],
+  profile: ProfessionalProfile,
+  minScore = 0
+): JobListing[] { ... }
+```
 
 **Return Values:**
-- Type explicitly
-- Use result objects for success/failure scenarios
-- Example from `packages/ats-apply/src/handlers/email.handler.ts`:
-  ```typescript
-  export interface EmailApplyResult {
-    status: 'applied';
-    confirmationId?: string;
-  }
-  export async function applyViaEmail(params: EmailApplyParams): Promise<EmailApplyResult> { ... }
-  ```
+- Explicit return types on all functions
+- Never implicitly return `undefined`; use explicit return
+- Immutable return values (e.g., spread operator for objects): `return { ...job, compatibilityScore: score };`
+- Example:
+```typescript
+export function scoreJob(job: JobListing, profile: ProfessionalProfile): JobListing {
+  // ... calculation ...
+  return { ...job, compatibilityScore: score };
+}
+```
 
-**Async Handling:**
-- Mark functions `async` where they use `await`
-- Always have try/catch with typed error handling
-- Use `Promise<Type>` return type
+**Async Functions:**
+- Must include typed `try/catch` with `unknown` catch parameter
+- All awaits are explicit
+- Return type clearly specified: `async function issueTokens(...): Promise<TokenPairDto> { ... }`
 
 ## Module Design
 
 **Exports:**
-- Export public types and functions only
-- Use barrel exports (`index.ts`) sparingly — workspace aliases handle re-exports
-- Example from `packages/logger/src/index.ts`:
-  ```typescript
-  export interface RequestContext { ... }
-  export const requestContext = new AsyncLocalStorage<RequestContext>();
-  export function createLogger(serviceName: string): winston.Logger { ... }
-  ```
+- Named exports for functions and classes
+- Default export for React components only
+- Type-only exports: `export type { SomeType };`
+- Example:
+```typescript
+// Correct
+export function scoreJob(...) { ... }
+export class AuthService { ... }
+export interface TokenPairDto { ... }
+
+// React component
+const LandingPage: React.FC = () => { ... };
+export default LandingPage;
+```
 
 **Barrel Files:**
-- Each package has `packages/[name]/src/index.ts` exporting public API
-- Cross-package imports use workspace aliases: `import { X } from '@job-agent/logger'`
-- No deep imports across package boundaries
+- Use `index.ts` as barrel export for cross-boundary imports
+- Example from `packages/core/package.json`: main points to `./dist/index.js`
+- All workspace imports must target the barrel: `import { JobListing } from '@job-agent/core';`
 
-## Language
+**Const Assertions:**
+- Use `as const` on configuration objects to preserve literal types
+- Example:
+```typescript
+const WEIGHTS = {
+  skillsMatch: 0.50,
+  seniorityMatch: 0.25,
+  keywordMatch: 0.15,
+  locationMatch: 0.10,
+} as const;
+```
 
-**Mandatory:** All code, comments, variable names, and function names MUST be written in **English only**.
-- No Spanish identifiers in code
-- Selectors and regex patterns support bilingual **content** (EN + ES) but identifier names are English
-- Example from `packages/linkedin-mcp/src/browser/selectors.constants.ts`:
-  ```typescript
-  export const SELECTORS = {
-    // English identifier
-    EASY_APPLY_NEXT_BUTTON: 'button[aria-label="Continue to next step"], button[aria-label="Continuar al siguiente paso"]',
-    // ↑ Selector string is bilingual, but the constant name is English
-  ```
+**Readonly Properties:**
+- Immutable service dependencies use `private readonly`
+- Example from `apps/microservices/user-service/src/modules/auth/auth.service.ts`:
+```typescript
+constructor(
+  private readonly jwtService: JwtService,
+  private readonly usersService: UsersService
+) {}
+```
 
 ---
 
-*Convention analysis: 2025-03-10*
+*Convention analysis: 2026-03-11*

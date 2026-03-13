@@ -15,8 +15,10 @@ export function encryptToken(plaintext: string): string {
   const key = resolveKey();
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);
+
   const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
   const authTag = cipher.getAuthTag();
+
   return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`;
 }
 
@@ -33,8 +35,10 @@ export function decryptToken(encoded: string): string {
   const iv = Buffer.from(ivHex, 'hex');
   const authTag = Buffer.from(tagHex, 'hex');
   const ciphertext = Buffer.from(cipherHex, 'hex');
+
   const decipher = createDecipheriv(ALGORITHM, key, iv);
   decipher.setAuthTag(authTag.slice(0, TAG_LENGTH));
+
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
 }
 
@@ -44,7 +48,7 @@ function resolveKey(): Buffer {
   if (hex.length !== 64) {
     throw new Error(
       'TOKEN_CIPHER_KEY must be a 64-character hex string (32 bytes). ' +
-        "Generate with: node -e \"process.stdout.write(require('crypto').randomBytes(32).toString('hex') + '\\n')\"",
+      'Generate with: node -e "process.stdout.write(require(\'crypto\').randomBytes(32).toString(\'hex\') + \'\\n\')"'
     );
   }
   return Buffer.from(hex, 'hex');

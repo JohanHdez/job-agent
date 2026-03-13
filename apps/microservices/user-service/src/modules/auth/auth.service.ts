@@ -3,7 +3,8 @@ import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'crypto';
 import { Types } from 'mongoose';
 import { UsersService } from '../users/users.service.js';
-import type { UserDocument } from '../users/schemas/user.schema.js';
+import { UserDocument } from '../users/schemas/user.schema.js';
+import type { JwtPayload } from './strategies/jwt.strategy.js';
 
 /** Converts a Mongoose document _id to a plain string. */
 function toId(id: unknown): string {
@@ -11,14 +12,15 @@ function toId(id: unknown): string {
   return String(id);
 }
 
-const ACCESS_TOKEN_TTL_SECONDS = 24 * 60 * 60; // 24 hours
-const REFRESH_TOKEN_TTL_DAYS = 7;
-
-interface TokenPair {
+/** Shape of the token pair returned to the client */
+export interface TokenPairDto {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
 }
+
+const ACCESS_TOKEN_TTL_SECONDS = 24 * 60 * 60; // 24 hours
+const REFRESH_TOKEN_TTL_DAYS = 7;
 
 /**
  * Handles JWT issuance, rotation, and revocation.
@@ -28,28 +30,31 @@ interface TokenPair {
 export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly usersService: UsersService,
-  ) {}
+    private readonly usersService: UsersService
+  ) { }
 
   /**
    * Issues a new access + refresh token pair for a user.
    * Called after successful OAuth login.
    */
-  async issueTokens(user: UserDocument): Promise<TokenPair> {
-    const payload = {
+  async issueTokens(user: UserDocument): Promise<TokenPairDto> {
+    const payload: JwtPayload = {
       sub: toId(user._id),
       email: user.email,
       name: user.name,
     };
+
     const accessToken = this.jwtService.sign(payload, {
       expiresIn: ACCESS_TOKEN_TTL_SECONDS,
     });
+
     const refreshToken = randomBytes(40).toString('hex');
     await this.usersService.addRefreshToken(
       toId(user._id),
       refreshToken,
-      REFRESH_TOKEN_TTL_DAYS,
+      REFRESH_TOKEN_TTL_DAYS
     );
+
     return { accessToken, refreshToken, expiresIn: ACCESS_TOKEN_TTL_SECONDS };
   }
 
@@ -58,11 +63,16 @@ export class AuthService {
    * The old refresh token is revoked after use.
    * @throws UnauthorizedException if the token is invalid or expired.
    */
-  async refreshTokens(refreshToken: string): Promise<TokenPair> {
+  async refreshTokens(refreshToken: string): Promise<TokenPairDto> {
     const user = await this.usersService.validateRefreshToken(refreshToken);
     if (!user) throw new UnauthorizedException('Invalid or expired refresh token');
+
     // Revoke the used token (rotation — prevents replay attacks)
-    await this.usersService.removeRefreshToken(toId(user._id), refreshToken);
+    await this.usersService.removeRefreshToken(
+      toId(user._id),
+      refreshToken
+    );
+
     return this.issueTokens(user);
   }
 

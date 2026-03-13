@@ -13,13 +13,10 @@
  *
  * Correlation context is populated by the correlationMiddleware in server.ts.
  */
-
-import { AsyncLocalStorage } from 'async_hooks';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import winston from 'winston';
-import chalk from 'chalk';
 
-// ── Request context stored per async execution chain ─────────────────────────
-
+/** Shape of the per-request context stored in AsyncLocalStorage */
 export interface RequestContext {
   correlationId: string;
   userId?: string;
@@ -28,45 +25,25 @@ export interface RequestContext {
 /** Shared storage — one active entry per request, isolated by async context */
 export const requestContext = new AsyncLocalStorage<RequestContext>();
 
-// ── Log entry shape ───────────────────────────────────────────────────────────
-
-interface StructuredLogEntry {
-  timestamp: string;
-  level: string;
-  service: string;
-  correlationId: string;
-  userId: string;
-  message: string;
-  [key: string]: unknown;
-}
-
 // ── Format helpers ────────────────────────────────────────────────────────────
-
-const LEVEL_COLORS: Record<string, (s: string) => string> = {
-  error: chalk.red,
-  warn: chalk.yellow,
-  info: chalk.blue,
-  debug: chalk.magenta,
-  verbose: chalk.cyan,
-};
 
 /**
  * Human-readable format for development:
- *   [HH:mm:ss] [SERVICE] [correlationId] LEVEL message {meta}
+ *   [timestamp] [SERVICE] [correlationId] LEVEL message {meta}
  */
 function devFormat(service: string): winston.Logform.Format {
   return winston.format.printf((info) => {
     const ctx = requestContext.getStore();
     const cid = ctx?.correlationId ?? '-';
     const uid = ctx?.userId ? ` uid=${ctx.userId}` : '';
-    const ts  = chalk.gray(String(info['timestamp'] ?? ''));
-    const svc = chalk.cyan(`[${service}]`);
-    const lvl = (LEVEL_COLORS[info.level] ?? chalk.white)(info.level.toUpperCase());
+    const ts = String(info['timestamp'] ?? '');
+    const svc = `[${service}]`;
+    const lvl = info.level.toUpperCase();
     const msg = String(info['message'] ?? '');
 
     // Print extra metadata (excluding standard fields)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { timestamp: _ts, level: _lvl, message: _msg, ...meta } = info;
+    const { timestamp: _ts, level: _lvl, message: _msg, ...meta } = info as Record<string, unknown>;
+    void _ts; void _lvl; void _msg;
     const metaStr = Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : '';
 
     return `${ts} ${svc} [${cid}${uid}] ${lvl} ${msg}${metaStr}`;
@@ -80,18 +57,18 @@ function devFormat(service: string): winston.Logform.Format {
 function jsonFormat(service: string): winston.Logform.Format {
   return winston.format.printf((info) => {
     const ctx = requestContext.getStore();
-    const entry: StructuredLogEntry = {
-      timestamp:     String(info['timestamp'] ?? new Date().toISOString()),
-      level:         info.level,
+    const entry: Record<string, unknown> = {
+      timestamp: String(info['timestamp'] ?? new Date().toISOString()),
+      level: info.level,
       service,
       correlationId: ctx?.correlationId ?? 'system',
-      userId:        ctx?.userId ?? 'anonymous',
-      message:       String(info['message'] ?? ''),
+      userId: ctx?.userId ?? 'anonymous',
+      message: String(info['message'] ?? ''),
     };
 
     // Merge remaining metadata
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { timestamp: _ts, level: _lvl, message: _msg, ...meta } = info;
+    const { timestamp: _ts, level: _lvl, message: _msg, ...meta } = info as Record<string, unknown>;
+    void _ts; void _lvl; void _msg;
     Object.assign(entry, meta);
 
     return JSON.stringify(entry);
@@ -114,7 +91,7 @@ export function createLogger(serviceName: string): winston.Logger {
 
   const format = winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DDTHH:mm:ss.SSSZ' }),
-    isProduction ? jsonFormat(serviceName) : devFormat(serviceName),
+    isProduction ? jsonFormat(serviceName) : devFormat(serviceName)
   );
 
   return winston.createLogger({

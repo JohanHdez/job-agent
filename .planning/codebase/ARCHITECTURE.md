@@ -1,256 +1,283 @@
 # Architecture
 
-**Analysis Date:** 2026-03-10
+**Analysis Date:** 2025-03-11
 
 ## Pattern Overview
 
-**Overall:** Modular monorepo with layered microservice and package architecture. Separation of concerns across:
-- **Shared layer** (`packages/core`) — types and configuration only, no runtime dependencies
-- **Package layer** (`packages/*`) — domain logic organized by concern (CV parsing, job search, LinkedIn automation, ATS applications, reporting)
-- **Service layer** (`apps/microservices/`) — NestJS-based stateless microservices (user-service, future job-search-service, ats-apply-service)
-- **Gateway layer** (`packages/api`) — Express REST API serving the UI and orchestrating backend calls
-- **CLI/UI layer** (`apps/cli`, `apps/ui`) — User-facing entry points: CLI launcher and vanilla HTML/JS dashboard
+**Overall:** Multi-tier monorepo with server-driven agent orchestration, stateless API backend, and pluggable multi-platform job search with real-time Server-Sent Events (SSE) streaming.
 
 **Key Characteristics:**
-- Type-safe shared types in `@job-agent/core` — single source of truth for all interfaces
-- Stateless packages connected via HTTP and MCP (Model Context Protocol)
-- Structured logging via Winston factory at `packages/logger` with AsyncLocalStorage for correlation IDs
-- Multi-platform job search (7 platforms) via HTTP-only searchers, no browser automation in main flow
-- LinkedIn automation isolated in MCP server (`packages/linkedin-mcp`) for decoupled, in-process tool access
+- **Server-centric pipeline** — All job search, parsing, and application logic runs server-side in `packages/api` via Express
+- **SSE-based progress streaming** — Client receives real-time events (`job_found`, `job_applied`, `session_complete`) via EventSource
+- **Plugin-based platform system** — Platforms (LinkedIn, Indeed, Greenhouse, etc.) plugged into unified job search interface
+- **Stateless microservices** — Future user-service (NestJS) will be independent; currently API handles orchestration
+- **Structured logging** — Winston logger with AsyncLocalStorage for correlation IDs and request context
 
 ## Layers
 
-**Core/Shared Types:**
-- Purpose: Define all interfaces, enums, and DTOs consumed by packages and services
+**CLI Entry Point:**
+- Purpose: Server launcher — spawns API process and opens browser
+- Location: `apps/cli/src/index.ts`
+- Contains: Node child_process spawner, chalk-based console messaging
+- Depends on: `packages/api/dist/server.js` (built Express server)
+- Used by: `npm start` command
+
+**API Server (Express):**
+- Purpose: HTTP gateway for all agent operations and file I/O
+- Location: `packages/api/src/server.ts` and `packages/api/src/routes/`
+- Contains: Route handlers, middleware (CORS, error handling, correlation), SSE streaming logic
+- Depends on: `@job-agent/core` (types), `@job-agent/cv-parser`, `@job-agent/job-search`, `@job-agent/ats-apply`, `@job-agent/linkedin-mcp`, `@job-agent/reporter`
+- Used by: Browser UI (vanilla HTML or React), CLI launcher
+- Routes:
+  - `GET/POST /api/config` — Read/write `config.yaml`
+  - `POST /api/cv/upload` — Upload CV file
+  - `GET /api/cv` — Check uploaded CV status
+  - `POST /api/run` — Start agent pipeline (returns sessionId)
+  - `GET /api/run/progress` — SSE stream of raw progress events
+  - `GET /api/search/events` — SSE stream of typed semantic events
+  - `GET /api/report` — Return session summary + applications
+
+**Agent Pipeline (runPipeline in agent.routes.ts):**
+- Purpose: Orchestrates 8-step job search and application workflow
+- Location: `packages/api/src/routes/agent.routes.ts` (lines 337-721)
+- Contains: Sequential pipeline steps, event emission, error handling
+- Depends on: CV parser, job search, scoring, LinkedIn agent, ATS apply, reporter
+- Steps:
+  1. Load `config.yaml`
+  2. Find CV file in `cv/` directory
+  3. Parse CV → extract professional profile
+  4. Multi-platform job search (LinkedIn, Indeed, etc.)
+  5. Score and rank jobs against profile
+  6. Apply via LinkedIn Easy Apply + ATS APIs (Greenhouse/Lever)
+  7. Save output files (`applications.json`, `session-summary.json`, `jobs-found.json`)
+  8. Generate HTML/Markdown report
+
+**Core Type Layer:**
+- Purpose: Single source of truth for all domain models
 - Location: `packages/core/src/types/`
-- Contains: TypeScript interfaces for jobs, CV profiles, config, application records
-- Depends on: Nothing (no runtime dependencies)
-- Used by: Every package and microservice
+- Contains: `ProfessionalProfile`, `JobListing`, `ApplicationRecord`, `AppConfig`, SSE event types
+- Used by: All packages and apps (imported from `@job-agent/core`)
 
-**Logger Service:**
-- Purpose: Centralized structured logging with correlation ID and service name injection
-- Location: `packages/logger/src/index.ts`
-- Contains: Winston logger factory, AsyncLocalStorage for request context
-- Depends on: Winston, chalk
-- Used by: API gateway and all microservices
-
-**CV Parser Package:**
-- Purpose: Extract professional profile from PDF/DOCX files using Claude API
+**CV Parser:**
+- Purpose: Extract text from PDF/DOCX, parse via Claude API into `ProfessionalProfile`
 - Location: `packages/cv-parser/src/`
-- Contains: PDF parsers, profile builders, extractors (skills, experience, etc.)
-- Depends on: Claude API via Anthropic SDK, `@job-agent/core` types
-- Used by: API routes and CLI flow
+- Contains: PDF/DOCX extraction, Claude API prompts, parsing logic
+- Depends on: Claude API (ANTHROPIC_API_KEY)
+- Produces: `output/profile.json`
 
-**Job Search Package:**
-- Purpose: Multi-platform job discovery via HTTP (no browser)
+**Job Search (Multi-Platform):**
+- Purpose: Unified interface for searching jobs across multiple platforms
 - Location: `packages/job-search/src/`
-- Contains: Per-platform searcher implementations (LinkedIn, Indeed, Computrabajo, Bumeran, Getonboard, Infojobs, Greenhouse)
-- Depends on: HTTP clients (axios), `@job-agent/core` types
-- Used by: API routes, agent orchestration
+- Contains: `runMultiPlatformSearch()` orchestrator, platform-specific adapters in `platforms/`
+- Platforms: LinkedIn (HTTP guest API), Indeed, Computrabajo, Bumeran, GetOnBoard, InfoJobs, Greenhouse API
+- Produces: Flat `JobListing[]` array with normalized fields
 
-**LinkedIn MCP Server:**
-- Purpose: Automate LinkedIn job searches, detail fetches, and Easy Apply submissions
+**LinkedIn MCP Agent (Browser Automation):**
+- Purpose: Playwright-based LinkedIn Easy Apply automation
 - Location: `packages/linkedin-mcp/src/`
-- Contains: Playwright browser automation, bilingual selectors, job scoring, rate limiting
-- Depends on: Playwright, MCP SDK, `@job-agent/core` types, job-search package
-- Used by: API routes via child process execution
+- Contains: Browser automation via Playwright, bilingual selectors, job ranking scorer, LinkedIn session management
+- Depends on: LinkedIn credentials from `.env` (LINKEDIN_EMAIL, LINKEDIN_PASSWORD)
+- Produces: Applied jobs, Easy Apply submission confirmations
+- Key submodules:
+  - `browser/` — Playwright selectors, login flow, page navigation
+  - `scoring/` — Job ranking algorithm (skill match, seniority, experience)
+  - `tools/` — MCP tool definitions for Claude integration (future)
 
-**ATS/Application Handler Package:**
-- Purpose: Detect application form fields and submit applications
+**ATS Apply (Greenhouse/Lever):**
+- Purpose: Automated application submission to ATS platforms
 - Location: `packages/ats-apply/src/`
-- Contains: Form detectors (LinkedIn, Greenhouse, Lever, email), cover letter generation, form handlers
-- Depends on: Claude API, SMTP transports, `@job-agent/core` types
-- Used by: LinkedIn MCP during Easy Apply, API routes
+- Contains: ATS detection, Greenhouse API calls, form filling
+- Depends on: Job metadata (URL, form fields)
+- Produces: Application status, confirmation IDs
 
-**Reporter Package:**
-- Purpose: Generate Markdown and HTML reports from application results
+**Reporter:**
+- Purpose: Generate HTML and Markdown reports from session results
 - Location: `packages/reporter/src/`
-- Contains: Report templates, formatters for applications and statistics
-- Depends on: `@job-agent/core` types
-- Used by: API routes post-completion
+- Contains: Template rendering, PDF generation, summary statistics
+- Depends on: `SessionSummary`, `ApplicationRecord[]`
+- Produces: `output/report.html`, `output/report.md`
 
-**API Gateway:**
-- Purpose: REST endpoint layer for UI interaction and orchestration
-- Location: `packages/api/src/`
-- Contains: Express routes for config, CV, jobs, and agent orchestration
-- Depends on: All packages above, winston logger
-- Used by: CLI launcher, vanilla HTML UI
+**Web App (React + Vite):**
+- Purpose: Modern SPA frontend (Phase 2, not active in MVP)
+- Location: `apps/web/src/`
+- Contains: Route definitions, feature pages (login, config, history, etc.), Zustand store
+- Depends on: `packages/api` (HTTP client)
+- Routes: `/`, `/login`, `/auth/callback`, `/config`, `/profile`, `/history`, `/report`
 
-**User Microservice (NestJS):**
-- Purpose: User authentication (LinkedIn/Google OAuth), profile management
+**Microservices (NestJS, Future):**
+- Purpose: Stateless user auth and profile management (Phase 2)
 - Location: `apps/microservices/user-service/src/`
-- Contains: Auth guards, JWT strategies, MongoDB user schemas
-- Depends on: NestJS, MongoDB/Mongoose, passport strategies
-- Used by: Future—currently not integrated with main flow
+- Contains: Auth controllers, JWT strategies, Mongoose user schema
+- Depends on: MongoDB (MONGO_USER_SERVICE_URI)
+- Modules: `AuthModule`, `UsersModule`
+
+**Logger (Shared):**
+- Purpose: Structured Winston logging with correlation context
+- Location: `packages/logger/src/`
+- Contains: `createLogger()` factory, AsyncLocalStorage for request context
+- Injected by: `correlationMiddleware` in `packages/api/src/common/logger/correlation.middleware.ts`
+- Logs: Service name, correlationId, userId, timestamp, JSON format in production
 
 ## Data Flow
 
-**Initialization Flow:**
+**Full Agent Run (POST /api/run → SSE /api/search/events):**
 
-1. `npm start` launches CLI (`apps/cli/src/index.ts`)
-2. CLI spawns API server as child process (`packages/api/dist/server.js`)
-3. CLI opens browser to `http://localhost:3000/index.html`
-4. Static UI files served from `apps/ui/`
+1. **User submits config in UI**
+   - Browser sends POST to `/api/run` with optional `config` in body
+   - API creates in-memory `SessionState` with sessionId
+   - Returns immediately with `{ sessionId }`
 
-**Agent Execution Flow (POST /api/run):**
+2. **Pipeline starts asynchronously**
+   - `runPipeline()` launches as fire-and-forget Promise
+   - Emits `progress` events to `GET /api/run/progress` subscribers
+   - Emits semantic events (job_found, job_applied, etc.) to `GET /api/search/events` subscribers
+   - Both SSE streams replay buffered events for late-connecting clients
 
-1. User uploads CV via form → `POST /api/cv/upload`
-2. API parses CV → `runCvParser()` from `@job-agent/cv-parser` → saves `output/profile.json`
-3. User sets config in UI → `POST /api/config` → saves `config.yaml`
-4. User clicks "Start Search" → `POST /api/run` initiates agent session
-5. Agent runs pipeline:
-   - Calls `runMultiPlatformSearch()` from `@job-agent/job-search` → HTTP-only searches across platforms
-   - Jobs returned as array of `JobListing` objects with compatibility scores
-   - Spawns LinkedIn MCP server as child process for Easy Apply
-   - MCP server uses Playwright to interact with LinkedIn UI (searches, applies via Easy Apply buttons)
-   - Each application recorded as `ApplicationRecord` with status
-   - ATS form detector and cover letter generator activated via MCP tools
-6. Results written to:
-   - `output/applications.json` — array of `ApplicationRecord` objects
-   - `output/jobs-found.json` — all discovered jobs
-   - `output/profile.json` — parsed CV profile
+3. **CV Parsing**
+   - Reads CV from `cv/` directory
+   - Calls `@job-agent/cv-parser.runCvParser(cvPath, outputPath)`
+   - Saves `profile.json` to `output/`
 
-**Progress Streaming (GET /api/run/progress):**
+4. **Keyword Enrichment**
+   - Merges user keywords with CV-derived keywords (headline, top 6 tech stack items)
+   - Deduplicates case-insensitively
+   - Emits enrichment details to progress stream
 
-1. Client opens SSE connection during agent execution
-2. API broadcasts `ProgressEvent` objects (step, message, level) to all connected clients
-3. UI updates progress bar and log in real time
-4. Session state maintained in memory at `agentRouter` scope
+5. **Job Search**
+   - Calls `@job-agent/job-search.runMultiPlatformSearch(config, maxPerPlatform, callback)`
+   - For each selected platform, calls platform adapter
+   - Each job receives `compatibilityScore: 0` initially
+   - Emits `job_found` semantic event per job
+   - Collects all jobs into flat array
 
-**Report Generation:**
+6. **Scoring & Filtering**
+   - Calls `@job-agent/linkedin-mcp/scoring.rankJobs(allJobs, profile, 0)`
+   - Returns same array with `compatibilityScore` (0–100) populated
+   - Segments jobs by score buckets for reporting
+   - Saves `jobs-found.json` to `output/`
 
-1. Agent completion triggers reporter via `runReporter()`
-2. Reporter reads `output/applications.json`, `output/profile.json`, `output/jobs-found.json`
-3. Generates `output/report.md` and `output/report.html`
-4. UI displays summary stats and application list
-5. Report artifacts served from `GET /output/` static route
+7. **Application Submission**
+   - **LinkedIn Easy Apply:** If LinkedIn selected, spawns browser, logs in, searches, applies via Playwright
+   - **ATS APIs:** For jobs above minScore from non-LinkedIn platforms, detects ATS type, submits via API
+   - Both methods emit `job_applied` semantic events with method and confirmationId
+   - Rate-limits submissions (3–5s between searches, 8–12s between applications)
+
+8. **Output Generation**
+   - Saves `applications.json` (all ApplicationRecord objects)
+   - Saves `session-summary.json` (SessionSummary stats)
+   - Calls `@job-agent/reporter.generateReport()` → produces HTML + Markdown
+   - Emits final `session_complete` event with success/failure status
 
 **State Management:**
 
-- **Configuration:** YAML file on disk (`config.yaml`), validated at startup, typed as `AppConfig`
-- **Session State:** In-memory object in `agentRouter` (single session, replaced on new run)
-- **Request Context:** Per-request correlation ID and userId stored in AsyncLocalStorage, injected into all logger calls
-- **Application Results:** JSON files written to `output/` directory, persisted across sessions
+- **In-Memory Session:** `SessionState` lives in `agent.routes.ts` module scope; holds progress/semantic event buffers and active SSE client connections
+- **Persistent Output:** All results written to `output/` directory; read via `GET /api/report`
+- **Configuration:** Loaded from `config.yaml` at pipeline start; can be updated via POST `/api/config`
+- **CV Storage:** Uploaded to `cv/` directory; only first PDF/DOCX file is processed
 
 ## Key Abstractions
 
-**ProfessionalProfile:**
-- Purpose: Structured representation of a user's CV/resume
-- Examples: `packages/cv-parser/src/extractors/profile.builder.ts`
-- Pattern: Built from raw PDF text → extracted skills, experience, education → JSON serializable type
-
 **JobListing:**
-- Purpose: Normalized job posting across all platforms
-- Examples: All platform searchers return `JobListing[]`
-- Pattern: Each platform implements `IPlatformSearcher` interface returning normalized jobs with `compatibilityScore`
+- Purpose: Unified representation of a job across all platforms
+- Fields: `id`, `title`, `company`, `location`, `modality`, `description`, `requiredSkills`, `postedAt`, `applyUrl`, `hasEasyApply`, `compatibilityScore`, `platform`
+- Used by: Job search adapters, scoring, ATS detection, reporter
 
 **ApplicationRecord:**
-- Purpose: Audit trail of application attempts with status and proof
-- Examples: Written to `output/applications.json`, displays in reports
-- Pattern: Immutable record created per job, includes error messages if failed, confirmation ID if succeeded
+- Purpose: Result of applying to a single job
+- Fields: `job` (JobListing), `status` (applied|failed|skipped|already_applied|easy_apply_not_available), `appliedAt`, `applicationMethod`, `confirmationId`, `errorMessage`
+- Used by: Pipeline tracking, reporter, SSE events
 
-**IPlatformSearcher:**
-- Purpose: Pluggable searcher interface for each job platform
-- Examples: `packages/job-search/src/interfaces/platform.interface.ts`
-- Pattern: Each platform implements `search(config: AppConfig): Promise<JobListing[]>`; registry pattern in job-search index
-
-**LinkedInSession:**
-- Purpose: Browser automation context for LinkedIn interactions
-- Examples: `packages/linkedin-mcp/src/browser/linkedin.session.ts`
-- Pattern: Lazy-initialized, persistent Playwright browser instance, rate-limited navigation
+**ProfessionalProfile:**
+- Purpose: Parsed CV data structure
+- Fields: `fullName`, `email`, `phone`, `location`, `headline`, `summary`, `seniority`, `yearsOfExperience`, `skills[]`, `techStack[]`, `languages[]`, `experience[]`, `education[]`
+- Generated by: CV parser
+- Used by: Job scoring algorithm, keyword enrichment, application form filling
 
 **AppConfig:**
-- Purpose: Validated configuration schema for search, matching, cover letter, reporting
-- Examples: Loaded from `config.yaml` at `packages/core/src/types/config.types.ts`
-- Pattern: Serialized as YAML, deserialized to typed object, validated at startup
+- Purpose: User search and application preferences
+- Fields: `search` (keywords, location, modality, platforms, maxJobsToFind), `matching` (minScoreToApply, maxApplicationsPerSession), `coverLetter` (language, tone), `report` (format), `applicationDefaults` (work auth, sponsorship, salary, etc.)
+- Stored in: `config.yaml` (YAML serialized)
+- Used by: Pipeline every step for behavior customization
+
+**SSE Event Union:**
+- Purpose: Type-safe streaming event discriminated by `type` field
+- Types: `job_found`, `job_applied`, `job_skipped`, `session_complete`, `captcha_detected`, `progress`
+- Each carries relevant metadata (jobId, score, method, reason, timestamp)
+- Used by: Browser EventSource listener for real-time UI updates
 
 ## Entry Points
 
-**CLI Entry Point:**
-- Location: `apps/cli/src/index.ts`
-- Triggers: `npm start` command
-- Responsibilities: Spawn API server, open browser, handle SIGINT/SIGTERM gracefully
+**npm start:**
+- Location: `apps/cli/src/index.ts` (executed as CommonJS via `node apps/cli/dist/index.js`)
+- Triggers: Spawns Express server as child process, opens browser to `http://localhost:3000`
+- Responsibilities: Process lifecycle management, browser launch, error reporting
 
-**API Server Entry Point:**
-- Location: `packages/api/src/server.ts`
-- Triggers: Spawned by CLI, also callable directly for development
-- Responsibilities: Initialize Express app, register routes, serve static UI, bind to PORT
+**GET http://localhost:3000:**
+- Location: `apps/ui/index.html` (served statically from `packages/api/src/server.ts`)
+- Triggers: Initial page load from CLI browser open
+- Responsibilities: Present config form, CV upload, run button
 
-**MCP Server Entry Point:**
-- Location: `packages/linkedin-mcp/src/index.ts`
-- Triggers: Spawned as child process from agent.routes.ts during /api/run
-- Responsibilities: Register MCP tools (search_jobs, get_job_details, easy_apply), handle tool calls
+**POST /api/run:**
+- Location: `packages/api/src/routes/agent.routes.ts` (line 105)
+- Triggers: User clicks "Start Search" button
+- Responsibilities: Create session, validate config, launch async pipeline
 
-**NestJS Microservice Entry Point:**
-- Location: `apps/microservices/user-service/src/main.ts`
-- Triggers: Manual `npm start -w apps/microservices/user-service` or orchestrator
-- Responsibilities: Initialize NestJS app, register controllers/guards, validate requests with pipes
+**Future: Auth Flow (POST /auth/login, /auth/callback):**
+- Location: `apps/microservices/user-service/src/modules/auth/` (not wired to main flow yet)
+- Strategies: Google OAuth, LinkedIn OAuth, JWT validation
+- Responsibilities: User identity, session tokens, permission enforcement
 
 ## Error Handling
 
-**Strategy:**
-- Errors propagate up from workers (packages) to orchestrators (routes, MCP tools, CLI)
-- Each package exports either a specific error type or generic `Error` with `.message`
-- API routes catch and transform errors to HTTP responses
-- MCP tools handle errors and return error messages in tool response
-- Unhandled exceptions logged via structured logger with correlation ID
+**Strategy:** Try-catch blocks at each pipeline step; non-fatal errors emit warning-level events and continue; fatal errors (missing config, no CV) stop pipeline immediately.
 
 **Patterns:**
 
-```typescript
-// Pattern 1: Try-catch with typed logger in packages
-try {
-  const profile = await runCvParser(cvPath);
-  logger.info('CV parsed successfully', { profiles: profile.skills.length });
-  return profile;
-} catch (err) {
-  const msg = err instanceof Error ? err.message : String(err);
-  logger.error('CV parsing failed', { error: msg });
-  throw new Error(`CV parsing failed: ${msg}`);
-}
+- **Config loading (step 1):** Missing `config.yaml` → error message, pipeline stops, returns 404
+- **CV finding (step 2):** No PDF/DOCX in `cv/` → error message, stops
+- **CV parsing (step 3):** Claude API timeout or bad PDF → error logged, stops (could be made non-fatal)
+- **Job search (step 4):** Platform adapter timeout → logs warning, continues with 0 jobs from that platform
+- **Scoring (step 5):** Fails non-fatally → uses raw jobs without scores, logs warning, continues
+- **LinkedIn Easy Apply (step 6):** CAPTCHA detected → stops, emits `captcha_detected` SSE event, pauses
+- **ATS Apply (step 6):** Individual job fails → logs error, stores failed ApplicationRecord, continues with next job
+- **Report generation (step 8):** Non-fatal; if fails, pipeline still marks session complete
+- **Global catch:** Catches unhandled errors, emits `session_complete` with `success: false`, ends pipeline
 
-// Pattern 2: Express error middleware catches and transforms
-app.use(errorMiddleware); // Transforms Error → JSON response with status code
-
-// Pattern 3: MCP tools emit error in response
-const result = await linkedinSession.search(...);
-if (!result.success) {
-  return { status: 'error', message: result.error };
-}
-```
+**Middleware Error Handler:**
+- Location: `packages/api/src/middleware/error.middleware.ts`
+- Catches all Express route errors, logs with correlationId, returns 500 JSON
 
 ## Cross-Cutting Concerns
 
 **Logging:**
-- Winston factory at `packages/logger/src/index.ts` creates per-service loggers
-- Every logger call includes: timestamp, service name, correlationId, userId, message, metadata
-- Development: human-readable format with colors; Production: JSON format for aggregators
+- Tool: Winston (structured JSON in production, pretty-printed in dev)
+- Injection: `createLogger(serviceName)` factory from `@job-agent/logger`
+- Context: Correlation IDs attached via `requestContext` AsyncLocalStorage from `correlationMiddleware`
+- All events in pipeline logged with `[Agent]` prefix via `emit()` helper
 
 **Validation:**
-- Config loaded via js-yaml, validated against `AppConfig` type
-- NestJS global ValidationPipe for microservice DTOs (whitelist, transform)
-- No explicit validation schema library (Zod)—rely on TypeScript types
+- Config: Loaded via `yaml.load()` and cast to `AppConfig` type (runtime type-checking via TypeScript)
+- CV: Filename checked with regex `/\.(pdf|docx)$/i`
+- Job URLs: Parsed by `new URL()` for safety
+- ATS endpoints: Validated against known hostname patterns
 
 **Authentication:**
-- Microservice auth: Passport.js with LinkedIn/Google OAuth strategies, JWT tokens
-- API gateway: No auth (runs locally or behind nginx proxy in production)
-- LinkedIn credentials: Loaded from `.env`, not stored in config.yaml
+- LinkedIn: Email + password from `.env` (LINKEDIN_EMAIL, LINKEDIN_PASSWORD) passed to browser automation
+- Greenhouse: Token-based (board slug) embedded in search URL
+- Lever: Currently API-based, not implemented yet
+- User microservice: Will use JWT when wired up
 
 **Rate Limiting:**
-- LinkedIn automation: 3–5 second random delay between scrolls, 8–12 second delay between Easy Apply submissions
-- Detection: Check for CAPTCHA container and unusual activity banner selectors
-- Enforcement: Pause and wait, or stop and resume later
+- LinkedIn search: 3–5s random delay between page scrolls
+- LinkedIn Easy Apply: 8–12s random delay between submissions
+- ATS Apply: 3–5s random delay between submissions
+- Implemented via `setTimeout(random() * duration)` in pipeline
 
 **Bilingual Support:**
-- All LinkedIn selectors include English AND Spanish alternatives
-- Regex patterns handle both language variants (e.g., `phone|teléfono|telefono`)
-- Job search keywords and form answers configurable in `config.yaml` with `languages` array
-
-**Configuration Management:**
-- Single source of truth: `config.yaml` on disk
-- Schema: `AppConfig` type in `packages/core/src/types/config.types.ts`
-- Runtime: Loaded at startup, cached in API request scope, can be modified via `/api/config` POST
+- All Playwright selectors in `linkedin-mcp/src/browser/` dual-language (EN + ES)
+- Example: `[aria-label="Easy Apply"], [aria-label="Solicitud sencilla"]`
+- Regex patterns handle variants: `phone|teléfono|telefono`, etc.
 
 ---
 
-*Architecture analysis: 2026-03-10*
+*Architecture analysis: 2025-03-11*

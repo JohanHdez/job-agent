@@ -1,10 +1,10 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema.js';
 import { encryptToken } from '../../common/crypto/token-cipher.js';
 
-interface LinkedInUpsertDto {
+export interface UpsertLinkedInUserDto {
   linkedinId: string;
   email: string;
   name: string;
@@ -13,7 +13,7 @@ interface LinkedInUpsertDto {
   accessToken: string;
 }
 
-interface GoogleUpsertDto {
+export interface UpsertGoogleUserDto {
   googleId: string;
   email: string;
   name: string;
@@ -26,16 +26,15 @@ interface GoogleUpsertDto {
  */
 @Injectable()
 export class UsersService {
-  constructor(
-    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
-  ) {}
+  constructor(@InjectModel(User.name) private readonly userModel: Model<UserDocument>) { }
 
   /**
    * Creates or updates a user from a LinkedIn OAuth callback.
    * If a user with the same email already exists, links the LinkedIn identity.
    */
-  async upsertFromLinkedIn(dto: LinkedInUpsertDto): Promise<UserDocument> {
+  async upsertFromLinkedIn(dto: UpsertLinkedInUserDto): Promise<UserDocument> {
     const encryptedToken = encryptToken(dto.accessToken);
+
     const user = await this.userModel.findOneAndUpdate(
       { $or: [{ linkedinId: dto.linkedinId }, { email: dto.email }] },
       {
@@ -48,16 +47,17 @@ export class UsersService {
           linkedinAccessToken: encryptedToken,
         },
       },
-      { upsert: true, new: true, runValidators: true },
+      { upsert: true, new: true, runValidators: true }
     );
-    return user as UserDocument;
+
+    return user;
   }
 
   /**
    * Creates or updates a user from a Google OAuth callback.
    * If a user with the same email already exists, links the Google identity.
    */
-  async upsertFromGoogle(dto: GoogleUpsertDto): Promise<UserDocument> {
+  async upsertFromGoogle(dto: UpsertGoogleUserDto): Promise<UserDocument> {
     const user = await this.userModel.findOneAndUpdate(
       { $or: [{ googleId: dto.googleId }, { email: dto.email }] },
       {
@@ -68,18 +68,20 @@ export class UsersService {
           ...(dto.photo ? { photo: dto.photo } : {}),
         },
       },
-      { upsert: true, new: true, runValidators: true },
+      { upsert: true, new: true, runValidators: true }
     );
-    return user as UserDocument;
+
+    return user;
   }
 
   /** Stores a new refresh token for the user. */
   async addRefreshToken(userId: string, token: string, ttlDays = 7): Promise<void> {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + ttlDays * 24 * 60 * 60 * 1000);
+
     await this.userModel.updateOne(
       { _id: userId },
-      { $push: { refreshTokens: { token, issuedAt: now, expiresAt } } },
+      { $push: { refreshTokens: { token, issuedAt: now, expiresAt } } }
     );
   }
 
@@ -87,7 +89,7 @@ export class UsersService {
   async removeRefreshToken(userId: string, token: string): Promise<void> {
     await this.userModel.updateOne(
       { _id: userId },
-      { $pull: { refreshTokens: { token } } },
+      { $pull: { refreshTokens: { token } } }
     );
   }
 
@@ -95,25 +97,12 @@ export class UsersService {
   async pruneExpiredTokens(): Promise<void> {
     await this.userModel.updateMany(
       {},
-      { $pull: { refreshTokens: { expiresAt: { $lt: new Date() } } } },
+      { $pull: { refreshTokens: { expiresAt: { $lt: new Date() } } } }
     );
   }
 
-  /**
-   * Finds a user by their MongoDB _id.
-   *
-   * Row-level security: the `requesterId` MUST match `id`.
-   * Throws {@link ForbiddenException} when a caller attempts to read another
-   * user's record, preventing horizontal privilege escalation.
-   *
-   * @param id - The MongoDB _id of the user record to retrieve.
-   * @param requesterId - The authenticated caller's userId (from JWT sub claim).
-   * @throws ForbiddenException if `requesterId` does not equal `id`.
-   */
-  async findById(id: string, requesterId: string): Promise<UserDocument | null> {
-    if (id !== requesterId) {
-      throw new ForbiddenException('Access denied: you may only access your own user record.');
-    }
+  /** Finds a user by their MongoDB _id. */
+  async findById(id: string): Promise<UserDocument | null> {
     return this.userModel.findById(id).exec();
   }
 
