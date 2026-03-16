@@ -69,13 +69,14 @@ Source: Confirmed from `ProfilePage.tsx` (`SectionCard` padding 24px), `ConfigPa
 | Body | 14px | 400 | 1.5 | `#e2e2e8` |
 | Caption / Meta | 12px | 400 | 1.5 | `#6b7280` |
 | Heading | 24px | 700 | 1.2 | `#f0f0f8` |
-| Label / UI | 13px | 400 | 1.6 | `#e4e4f0` |
+
+**Scale rationale:** The former 13px (Label/UI) role is collapsed into 14px (Body). Visual differentiation for subordinate roles (subtitles, helper text, banner copy) is achieved via color (`#6b7280` muted) and weight, not a separate size tier. This reduces the scale to 3 sizes (12, 14, 24) with clear perceptible jumps.
 
 **Additional typography rules established in codebase:**
 - Page headings use `letterSpacing: '-0.04em'` (tight tracking — established in `ProfilePage.tsx` h1)
 - Logo/brand name uses `letterSpacing: '-0.03em'` (established in `LoginPage.tsx`)
 - Section subheadings (SectionCard titles) use 14px weight 700, `color: '#f0f0f8'`
-- Muted body/description text under headings: 13px weight 400, `color: '#6b7280'`
+- Muted body/description text under headings: 14px weight 400, `color: '#6b7280'`
 - Badge/pill labels: 12px weight 700 (established in `Chip` component, seniority badge)
 - Section title labels in ConfigPage: 14px weight 700, uppercase, `letterSpacing: '0.06em'`, opacity 0.7
 
@@ -128,10 +129,10 @@ The following new components must be built for Phase 2 using the established pat
 **Primary focal point:** The page heading "Complete Your Profile" — largest element on screen at 24px weight 700, draws the eye before the form fields.
 **Sections:**
 - Page title: "Complete Your Profile" (24px, weight 700, `#f0f0f8`, tracking -0.04em)
-- Sub-copy: "Fill in the fields below so the agent can find the right jobs for you." (13px, `#6b7280`)
+- Sub-copy: "Fill in the fields below so the agent can find the right jobs for you." (14px, `#6b7280`)
 - Editable fields: fullName (text), headline (text), seniority (PillToggle group: Junior / Mid / Senior / Lead), skills (ChipInput), at least 1 experience entry (company + title text inputs, required).
 - Primary CTA: "Save Profile" (full-width, indigo gradient button)
-- Secondary: "Skip for now" (text-only link, 13px, `#6b7280`) — only shown if the user has some data already (graceful degradation; CONTEXT.md allows manual completion).
+- Secondary: "Skip for now" (text-only link, 14px, `#6b7280`) — only shown if the user has some data already (graceful degradation; CONTEXT.md allows manual completion).
 
 **Required fields indicator:** Fields missing from the completeness threshold (skills, seniority, experience) show a small red dot (`#ef4444`, 6px) or `(required)` label in 12px `#ef4444`.
 
@@ -142,10 +143,10 @@ The following new components must be built for Phase 2 using the established pat
 - Background: `rgba(245,158,11,0.08)` (amber — warning, not error)
 - Border: `1px solid rgba(245,158,11,0.25)`
 - Border-radius: 12px
-- Padding: 14px 16px
+- Padding: 16px 16px
 - Icon: alert-triangle SVG, `#fbbf24`, 16x16
-- Text: "Your profile is missing: {comma-separated field list}. Add them to improve job matching." — 13px, `#fbbf24`
-- CTA: "Complete profile" inline link — 13px weight 700, `#6366f1`, underline on hover
+- Text: "Your profile is missing: {comma-separated field list}. Add them to improve job matching." — 14px, `#fbbf24`
+- CTA: "Complete profile" inline link — 14px weight 700, `#6366f1`, underline on hover
 
 ### New: Preset Management Section (in `ConfigPage.tsx`)
 
@@ -157,15 +158,15 @@ The following new components must be built for Phase 2 using the established pat
 **Preset selector row:**
 - Label: "Active Preset" (FieldLabel style)
 - Dropdown/select element: lists all saved preset names + "Custom (unsaved)" option. Height 44px, same `baseInput` style.
-- "Load" button: secondary style — `#1a1a24` background, `1px solid #2a2a38` border, 13px weight 700, `#e2e2e8` text, 36px height.
+- "Load Preset" button: secondary style — `#1a1a24` background, `1px solid #2a2a38` border, 14px weight 700, `#e2e2e8` text, 36px height.
 
 **Save as preset:**
 - Text input for preset name (placeholder: "Name this preset…") — `baseInput` style, height 44px
-- "Save Preset" button: indigo accent, 13px weight 700, height 36px, border-radius 8px. Disabled when 5 presets already exist.
+- "Save Preset" button: indigo accent, 14px weight 700, height 36px, border-radius 8px. Disabled when 5 presets already exist.
 - When at limit (5/5): show inline warning "Maximum 5 presets reached. Delete one to save a new preset." — 12px, `#fbbf24`.
 
 **Preset list:**
-- Renders each saved preset as a row: preset name (14px weight 400, `#e2e2e8`), "Activate" pill button (only when not active), "Delete" icon button.
+- Renders each saved preset as a row: preset name (14px weight 400, `#e2e2e8`), "Activate Preset" pill button (only when not active), "Delete" icon button (`aria-label="Delete {presetName} preset"`).
 - Active preset row has `1px solid rgba(99,102,241,0.4)` left border accent or subtle indigo background tint `rgba(99,102,241,0.06)`.
 - Delete button: trash icon SVG 14x14, `#6b7280` default, `#ef4444` on hover. No inline confirmation — uses modal (see destructive actions below).
 
@@ -228,6 +229,8 @@ Save trigger: "Save Changes" primary CTA (indigo gradient, full-width below the 
 | Preset delete confirmation | "Delete preset "{name}"? This cannot be undone." |
 | Preset delete confirm button | "Delete Preset" |
 | Preset delete cancel button | "Keep Preset" |
+| Preset selector load button | "Load Preset" |
+| Preset list activate button | "Activate Preset" |
 | Config save success | "Configuration saved successfully." (existing — no change) |
 | Config save error | "{server message}" (existing passthrough — no change) |
 | Session expired (401 silent refresh fail) | "Your session has expired. Sign in again." — shown as banner on protected pages, with "Sign In" link to `/login`. |
@@ -239,7 +242,7 @@ Save trigger: "Save Changes" primary CTA (indigo gradient, full-width below the 
 
 | Action | Trigger | Confirmation Approach |
 |--------|---------|----------------------|
-| Delete search preset | "Delete" icon button in preset row | Inline confirmation: replace row with "Delete preset '{name}'? This cannot be undone." + "Delete Preset" (red, `#ef4444`) + "Keep Preset" (muted). No modal. Auto-collapse after 5s without action. |
+| Delete search preset | "Delete" icon button in preset row (`aria-label="Delete {presetName} preset"`) | Inline confirmation: replace row with "Delete preset '{name}'? This cannot be undone." + "Delete Preset" (red, `#ef4444`) + "Keep Preset" (muted). No modal. Auto-collapse after 5s without action. |
 | Log out | (Out of scope for Phase 2 — appears in Phase 6 nav sidebar) | N/A this phase |
 
 ---
@@ -256,6 +259,7 @@ Save trigger: "Save Changes" primary CTA (indigo gradient, full-width below the 
 ## Accessibility Requirements
 
 - All interactive elements must have `aria-label` when they lack visible text (icon-only buttons, upload dropzone — already present in existing code).
+- Delete icon button in preset rows must include `aria-label="Delete {presetName} preset"` (dynamic preset name interpolated at render time).
 - Error banners must have `role="alert"` (established in `LoginPage.tsx` and `ConfigPage.tsx`).
 - Form fields must have associated `<label>` elements or `aria-label`.
 - Minimum contrast ratio 4.5:1 for body text against card background (`#e2e2e8` on `#1a1a24` passes).
