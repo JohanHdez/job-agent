@@ -1,9 +1,9 @@
 ---
-status: complete
+status: resolved
 phase: 01-foundation
 source: 01-01-SUMMARY.md, 01-02-SUMMARY.md
 started: 2026-03-16T15:28:30Z
-updated: 2026-03-16T15:28:30Z
+updated: 2026-03-16T18:00:00Z
 ---
 
 ## Current Test
@@ -58,17 +58,29 @@ skipped: 2
 ## Gaps
 
 - truth: "NestJS API boots without TypeScript errors on cold start"
-  status: failed
+  status: resolved
   reason: "User reported: src/routes/agent.routes.ts(20,3): error TS2305: Module '@job-agent/core' has no exported member 'SsePayload'. src/routes/agent.routes.ts(21,3): error TS2305: Module '@job-agent/core' has no exported member 'SseProgressPayload'."
   severity: blocker
   test: 1
-  artifacts: []
-  missing: []
+  root_cause: "SsePayload and SseProgressPayload exist in packages/core/src/types/job.types.ts and are correctly re-exported through both barrels, but packages/core/dist/ is stale — built before the SSE types were added, so TypeScript resolves @job-agent/core to outdated .d.ts output missing those exports."
+  artifacts:
+    - path: "packages/core/dist/"
+      issue: "Stale compiled output — missing SsePayload and SseProgressPayload declarations"
+    - path: "packages/core/src/types/job.types.ts"
+      issue: "Source is correct (lines 140-156 define both types) but dist not rebuilt"
+  missing:
+    - "Rebuild packages/core: cd packages/core && npm run build"
+  debug_session: ""
 
 - truth: "GET /health returns HTTP 200 with status/uptime/version fields"
-  status: failed
+  status: resolved
   reason: "User reported: Server fails to start — same TS2305 errors on SsePayload/SseProgressPayload prevent npm run dev:services from booting."
   severity: blocker
   test: 2
-  artifacts: []
-  missing: []
+  root_cause: "Same as test 1 — stale packages/core/dist/ causes TS2305 compilation failure, preventing the API from starting."
+  artifacts:
+    - path: "packages/core/dist/"
+      issue: "Stale build artifact"
+  missing:
+    - "Rebuild packages/core to unblock server startup"
+  debug_session: ""
