@@ -50,7 +50,14 @@ Plans:
   3. User can import their LinkedIn profile and all work experience, education, and skills fields are populated in under 8 seconds
   4. User can edit profile fields (skills, seniority, languages, experience), save, and the next session uses the updated values
   5. User can create, switch between, and delete up to 5 named search presets; the active preset persists between sessions
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Define SearchPresetType, Redis provider, extend User schema, create DTOs
+- [ ] 02-02-PLAN.md — Migrate OAuth to code-exchange pattern, cookie-based refresh, auth tests
+- [ ] 02-03-PLAN.md — Users REST API: profile CRUD, CV upload, preset CRUD with 5-cap
+- [ ] 02-04-PLAN.md — Frontend auth migration: code-exchange callback, silent refresh, axios interceptor
+- [ ] 02-05-PLAN.md — Frontend UI: ProfileSetupPage, profile edit mode, preset management in ConfigPage
 
 ### Phase 3: Sessions + BullMQ
 **Goal**: Users can start a job search session via POST /sessions and watch real-time progress events in the browser via SSE — with events persisted to MongoDB so a page refresh or reconnect replays missed events from the correct position.
@@ -118,7 +125,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/4 | In Progress|  |
-| 2. Auth + Users | 0/TBD | Not started | - |
+| 2. Auth + Users | 0/5 | Not started | - |
 | 3. Sessions + BullMQ | 0/TBD | Not started | - |
 | 4. Pipeline — Search + Scoring | 0/TBD | Not started | - |
 | 5. Application Automation | 0/TBD | Not started | - |
