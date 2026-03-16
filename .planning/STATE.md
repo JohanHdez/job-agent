@@ -3,15 +3,30 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 01-foundation plan 01-02
-last_updated: "2026-03-12T23:52:00Z"
-last_activity: 2026-03-11 — Roadmap created from requirements + research
+stopped_at: Completed 02-auth-+-users plan 02-02
+last_updated: "2026-03-13T13:24:54.941Z"
+last_activity: 2026-03-13 — Plan 01-03 complete (CI pipeline — Phase 1 Foundation complete)
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 2
+  total_plans: 5
+  completed_plans: 5
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: in-progress
+stopped_at: Completed 01-foundation plan 01-03
+last_updated: "2026-03-13T00:15:00Z"
+last_activity: 2026-03-13 — Plan 01-03 complete (CI pipeline with typecheck + Jest + gitleaks)
+progress:
+  total_phases: 7
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 0
+  completed_plans: 3
+  percent: 14
 ---
 
 # Project State
@@ -25,12 +40,12 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 
 ## Current Position
 
-Phase: 1 of 7 (Foundation)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
+Phase: 1 of 7 (Foundation) — COMPLETE
+Plan: 3 of 3 in current phase — all plans complete
+Status: Phase complete, ready for Phase 2
+Last activity: 2026-03-13 — Plan 01-03 complete (CI pipeline — Phase 1 Foundation complete)
 
-Progress: [██░░░░░░░░] 10%
+Progress: [██░░░░░░░░] 14%
 
 ## Performance Metrics
 
@@ -51,6 +66,9 @@ Progress: [██░░░░░░░░] 10%
 
 *Updated after each plan completion*
 | Phase 01-foundation P01 | 14 | 3 tasks | 26 files |
+| Phase 01-foundation P03 | 5 | 2 tasks | 1 file |
+| Phase 02-auth-+-users P01 | 6 | 3 tasks | 5 files |
+| Phase 02-auth-+-users P02 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -69,6 +87,15 @@ Recent decisions affecting current work:
 - [Phase 01-02]: JWT guard uses HS256 with JWT_SECRET in Phase 1; RS256 with asymmetric keys deferred to Phase 2 (OAuth token issuance)
 - [Phase 01-02]: Coverage exclusions: auth/users (Phase 2), main.ts, app.module.ts, *.module.ts, *.constants.ts, correlation.interceptor.ts (requires live HTTP context)
 - [Phase 01-02]: packages/api renamed to @job-agent/express-api to resolve workspace name collision with apps/api NestJS monolith
+- [Phase 01-03]: Three parallel CI jobs (typecheck, test, secrets) with no sequential dependency — all run concurrently
+- [Phase 01-03]: No ESLint gate in Phase 1 — deferred per locked decision in CONTEXT.md
+- [Phase 01-03]: ci.yml does NOT handle deploys — deploy-staging.yml and deploy-prod.yml remain separate
+- [Phase 01-03]: gitleaks uses protect mode (push diff only) with GITHUB_TOKEN — fetch-depth: 0 required
+- [Phase 02-auth-+-users]: Token-cipher tests set TOKEN_CIPHER_KEY via process.env in beforeAll — avoids needing .env for unit tests
+- [Phase 02-auth-+-users]: profiles.service.test.ts uses pure it.todo() stubs with no ProfilesService import — compiles cleanly before implementation exists
+- [Phase 02-auth-+-users]: Wave 0 pattern: all Phase 2 test files created before implementation so coverage is tracked from day one
+- [Phase 02-auth-+-users]: JwtModuleOptions.publicKey typed as string | Buffer — pass raw PEM string not createPublicKey() KeyObject
+- [Phase 02-auth-+-users]: JWT_SECRET fully removed from source files; JWT_PRIVATE_KEY + JWT_PUBLIC_KEY (base64 PEM) used for RS256
 
 ### Pending Todos
 
@@ -83,6 +110,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T23:52:00Z
-Stopped at: Completed 01-02-PLAN.md (NestJS infrastructure modules — LoggerModule, HealthModule, JwtAuthGuard, CorrelationInterceptor)
+Last session: 2026-03-13T13:24:54.934Z
+Stopped at: Completed 02-auth-+-users plan 02-02
 Resume file: None

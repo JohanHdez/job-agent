@@ -18,26 +18,27 @@ const config: Config = {
     '**/*.(t|j)s',
     // Exclude barrel files
     '!**/index.(t|j)s',
-    // Exclude Phase 2 modules — auth and users have no Phase 1 tests (per plan decision)
-    '!**/modules/auth/**',
-    '!**/modules/users/**',
     // Exclude bootstrap/wiring files — not unit-testable in isolation
     '!**/main.(t|j)s',
     '!**/app.module.(t|j)s',
     // Exclude NestJS module wiring files (tested indirectly via integration)
     '!**/*.module.(t|j)s',
-    // Exclude token cipher — tested in Phase 2 alongside auth
-    '!**/crypto/**',
     // Exclude constants files — plain re-exports with no logic
     '!**/*.constants.(t|j)s',
     // Exclude correlation interceptor — requires live HTTP context, covered by e2e tests
     '!**/correlation.interceptor.(t|j)s',
+    // Exclude OAuth strategies — require live Passport context, covered by e2e tests
+    '!**/strategies/*.strategy.(t|j)s',
   ],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
   moduleNameMapper: {
     // Strip .js extensions — ts-jest compiles .ts but imports use .js (Node16 module resolution)
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    // Workspace packages not in tsconfig paths — resolve to built dist
+    // rootDir = apps/api/src → ../../../ = workspace root
+    '^@job-agent/core$': '<rootDir>/../../../packages/core/dist/index.js',
+    '^@job-agent/cv-parser$': '<rootDir>/../../../packages/cv-parser/dist/index.js',
     ...(nameMapper ?? {}),
   },
   coverageThreshold: {
