@@ -3,11 +3,27 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
+stopped_at: "Completed 01-foundation plan 01-04 (gap closure: stale packages/core dist)"
+last_updated: "2026-03-16T16:18:17.157Z"
+last_activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
+progress:
+  total_phases: 7
+  completed_phases: 0
+  total_plans: 4
+  completed_plans: 3
+  percent: 75
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: in-progress
 stopped_at: Completed 01-foundation plan 01-02
 last_updated: "2026-03-12T23:52:00Z"
 last_activity: 2026-03-11 — Roadmap created from requirements + research
 progress:
-  total_phases: 7
+  [████████░░] 75%
   completed_phases: 0
   total_plans: 3
   completed_plans: 2
@@ -51,6 +67,7 @@ Progress: [██░░░░░░░░] 10%
 
 *Updated after each plan completion*
 | Phase 01-foundation P01 | 14 | 3 tasks | 26 files |
+| Phase 01-foundation P04 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -69,6 +86,7 @@ Recent decisions affecting current work:
 - [Phase 01-02]: JWT guard uses HS256 with JWT_SECRET in Phase 1; RS256 with asymmetric keys deferred to Phase 2 (OAuth token issuance)
 - [Phase 01-02]: Coverage exclusions: auth/users (Phase 2), main.ts, app.module.ts, *.module.ts, *.constants.ts, correlation.interceptor.ts (requires live HTTP context)
 - [Phase 01-02]: packages/api renamed to @job-agent/express-api to resolve workspace name collision with apps/api NestJS monolith
+- [Phase 01-foundation]: dev:services prefixes concurrently with 'npm run build -w packages/core &&' so stale dist never blocks downstream compilation (build-before-watch pattern)
 
 ### Pending Todos
 
@@ -83,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T23:52:00Z
-Stopped at: Completed 01-02-PLAN.md (NestJS infrastructure modules — LoggerModule, HealthModule, JwtAuthGuard, CorrelationInterceptor)
+Last session: 2026-03-16T16:18:17.152Z
+Stopped at: Completed 01-foundation plan 01-04 (gap closure: stale packages/core dist)
 Resume file: None
