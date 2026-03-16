@@ -55,10 +55,10 @@ Declared values (must be multiples of 4):
 
 Exceptions:
 - Dropzone internal padding: 48px 32px (established in `CvDropzone`) — keep as-is.
-- Profile page max-width container: `padding: '40px 24px 80px'` — keep as-is for page chrome.
+- Profile page max-width container: `padding: '32px 24px 64px'` — page chrome top/bottom padding.
 - Touch targets: all interactive elements (buttons, pill toggles, chip remove buttons) must be minimum 36px in one dimension. Primary CTA buttons use 44px height minimum.
 
-Source: Confirmed from `ProfilePage.tsx` (`SectionCard` padding 24px), `ConfigPage.tsx` (section padding 20px 24px), `CvDropzone` (48px 32px dropzone padding).
+Source: Confirmed from `ProfilePage.tsx` (`SectionCard` padding 24px), `ConfigPage.tsx` (section padding 16px 24px), `CvDropzone` (48px 32px dropzone padding).
 
 ---
 
@@ -67,17 +67,17 @@ Source: Confirmed from `ProfilePage.tsx` (`SectionCard` padding 24px), `ConfigPa
 | Role | Size | Weight | Line Height | Color (default) |
 |------|------|--------|-------------|-----------------|
 | Body | 14px | 400 | 1.5 | `#e2e2e8` |
-| Label / UI | 13px | 500 | 1.6 | `#e4e4f0` |
 | Caption / Meta | 12px | 400 | 1.5 | `#6b7280` |
-| Heading | 24px | 700–800 | 1.2 | `#f0f0f8` |
+| Heading | 24px | 700 | 1.2 | `#f0f0f8` |
+| Label / UI | 13px | 400 | 1.6 | `#e4e4f0` |
 
 **Additional typography rules established in codebase:**
 - Page headings use `letterSpacing: '-0.04em'` (tight tracking — established in `ProfilePage.tsx` h1)
 - Logo/brand name uses `letterSpacing: '-0.03em'` (established in `LoginPage.tsx`)
-- Section subheadings (SectionCard titles) use 14px weight 600, `color: '#f0f0f8'`
+- Section subheadings (SectionCard titles) use 14px weight 700, `color: '#f0f0f8'`
 - Muted body/description text under headings: 13px weight 400, `color: '#6b7280'`
-- Badge/pill labels: 11–12px weight 500–600 (established in `Chip` component, seniority badge)
-- Section title labels in ConfigPage: 14px weight 600, uppercase, `letterSpacing: '0.06em'`, opacity 0.7
+- Badge/pill labels: 12px weight 700 (established in `Chip` component, seniority badge)
+- Section title labels in ConfigPage: 14px weight 700, uppercase, `letterSpacing: '0.06em'`, opacity 0.7
 
 Source: Extracted from `LoginPage.tsx`, `ProfilePage.tsx`, `ConfigPage.tsx`.
 
@@ -125,8 +125,9 @@ The following new components must be built for Phase 2 using the established pat
 **Route:** `/profile/setup`
 **Purpose:** First-login onboarding gate. User fills critical profile fields before reaching dashboard.
 **Layout:** Centered card, max-width 640px, same card pattern as `LoginPage` (`#1a1a24` surface, `1px solid #2a2a38` border, `border-radius: 24px`).
+**Primary focal point:** The page heading "Complete Your Profile" — largest element on screen at 24px weight 700, draws the eye before the form fields.
 **Sections:**
-- Page title: "Complete Your Profile" (24px, weight 800, `#f0f0f8`, tracking -0.04em)
+- Page title: "Complete Your Profile" (24px, weight 700, `#f0f0f8`, tracking -0.04em)
 - Sub-copy: "Fill in the fields below so the agent can find the right jobs for you." (13px, `#6b7280`)
 - Editable fields: fullName (text), headline (text), seniority (PillToggle group: Junior / Mid / Senior / Lead), skills (ChipInput), at least 1 experience entry (company + title text inputs, required).
 - Primary CTA: "Save Profile" (full-width, indigo gradient button)
@@ -144,7 +145,7 @@ The following new components must be built for Phase 2 using the established pat
 - Padding: 14px 16px
 - Icon: alert-triangle SVG, `#fbbf24`, 16x16
 - Text: "Your profile is missing: {comma-separated field list}. Add them to improve job matching." — 13px, `#fbbf24`
-- CTA: "Complete profile" inline link — 13px weight 600, `#6366f1`, underline on hover
+- CTA: "Complete profile" inline link — 13px weight 700, `#6366f1`, underline on hover
 
 ### New: Preset Management Section (in `ConfigPage.tsx`)
 
@@ -156,15 +157,15 @@ The following new components must be built for Phase 2 using the established pat
 **Preset selector row:**
 - Label: "Active Preset" (FieldLabel style)
 - Dropdown/select element: lists all saved preset names + "Custom (unsaved)" option. Height 44px, same `baseInput` style.
-- "Load" button: secondary style — `#1a1a24` background, `1px solid #2a2a38` border, 13px weight 600, `#e2e2e8` text, 36px height.
+- "Load" button: secondary style — `#1a1a24` background, `1px solid #2a2a38` border, 13px weight 700, `#e2e2e8` text, 36px height.
 
 **Save as preset:**
 - Text input for preset name (placeholder: "Name this preset…") — `baseInput` style, height 44px
-- "Save Preset" button: indigo accent, 13px weight 600, height 36px, border-radius 8px. Disabled when 5 presets already exist.
+- "Save Preset" button: indigo accent, 13px weight 700, height 36px, border-radius 8px. Disabled when 5 presets already exist.
 - When at limit (5/5): show inline warning "Maximum 5 presets reached. Delete one to save a new preset." — 12px, `#fbbf24`.
 
 **Preset list:**
-- Renders each saved preset as a row: preset name (14px weight 500, `#e2e2e8`), "Activate" pill button (only when not active), "Delete" icon button.
+- Renders each saved preset as a row: preset name (14px weight 400, `#e2e2e8`), "Activate" pill button (only when not active), "Delete" icon button.
 - Active preset row has `1px solid rgba(99,102,241,0.4)` left border accent or subtle indigo background tint `rgba(99,102,241,0.06)`.
 - Delete button: trash icon SVG 14x14, `#6b7280` default, `#ef4444` on hover. No inline confirmation — uses modal (see destructive actions below).
 
@@ -176,7 +177,7 @@ The following new components must be built for Phase 2 using the established pat
 
 | State | Visual |
 |-------|--------|
-| Loading (exchanging code) | Existing spinner — 40px ring, `rgba(99,102,241,0.2)` border, `#6366f1` borderTopColor, 0.75s spin. Copy: "Completing sign-in…" (`#9090a8`, 14px). |
+| Loading (exchanging code) | Existing spinner — 32px ring, `rgba(99,102,241,0.2)` border, `#6366f1` borderTopColor, 0.75s spin. Copy: "Completing sign-in…" (`#9090a8`, 14px). |
 | Error (code expired / exchange failed) | Auto-redirect to `/login?error=auth_failed` — existing LoginPage error banner handles display. |
 | Success | Redirect to `/profile/setup` (if no profile) or `/config` (if profile complete). |
 
@@ -198,7 +199,7 @@ Phase 2 adds an edit mode toggle to `ProfilePage`. The page has two modes:
 **View mode (default):** Existing read-only `ProfileDisplay` component.
 **Edit mode:** Form fields replace display-only elements in-place within each `SectionCard`. Fields use `baseInput` style (`#12121a` background, `1px solid #2a2a38` border, 8px border-radius, 14px text).
 
-Toggle trigger: "Edit Profile" button in page header. Same position as existing "Import CV" button, secondary style when in view mode, switches to "Cancel" (text link style, `#6b7280`) when in edit mode.
+Toggle trigger: "Edit Profile" button in page header. Same position as existing "Import CV" button, secondary style when in view mode, switches to "Discard Changes" (text link style, `#6b7280`) when in edit mode.
 Save trigger: "Save Changes" primary CTA (indigo gradient, full-width below the last section). Show spinner during mutation. Show success banner on save.
 
 ---
@@ -219,17 +220,18 @@ Save trigger: "Save Changes" primary CTA (indigo gradient, full-width below the 
 | Incomplete profile banner | "Your profile is missing: {field list}. Add them to improve job matching." |
 | Incomplete profile CTA | "Complete profile" |
 | LinkedIn import error | "LinkedIn import failed. You can fill your profile manually or retry." |
-| LinkedIn import retry button | "Retry" |
+| LinkedIn import retry button | "Retry Import" |
 | CV upload success | "CV uploaded and parsed successfully!" (existing — no change) |
 | CV upload error | "Upload failed. Check the file is a PDF under 10 MB and try again." |
 | Preset at limit warning | "Maximum 5 presets reached. Delete one to save a new preset." |
 | Preset save success | "Preset saved." (inline confirmation, auto-dismiss 3s) |
 | Preset delete confirmation | "Delete preset "{name}"? This cannot be undone." |
 | Preset delete confirm button | "Delete Preset" |
-| Preset delete cancel button | "Cancel" |
+| Preset delete cancel button | "Keep Preset" |
 | Config save success | "Configuration saved successfully." (existing — no change) |
 | Config save error | "{server message}" (existing passthrough — no change) |
 | Session expired (401 silent refresh fail) | "Your session has expired. Sign in again." — shown as banner on protected pages, with "Sign In" link to `/login`. |
+| Profile edit mode exit | "Discard Changes" (text link style trigger, `#6b7280`) |
 
 ---
 
@@ -237,7 +239,7 @@ Save trigger: "Save Changes" primary CTA (indigo gradient, full-width below the 
 
 | Action | Trigger | Confirmation Approach |
 |--------|---------|----------------------|
-| Delete search preset | "Delete" icon button in preset row | Inline confirmation: replace row with "Delete preset '{name}'? This cannot be undone." + "Delete Preset" (red, `#ef4444`) + "Cancel" (muted). No modal. Auto-collapse after 5s without action. |
+| Delete search preset | "Delete" icon button in preset row | Inline confirmation: replace row with "Delete preset '{name}'? This cannot be undone." + "Delete Preset" (red, `#ef4444`) + "Keep Preset" (muted). No modal. Auto-collapse after 5s without action. |
 | Log out | (Out of scope for Phase 2 — appears in Phase 6 nav sidebar) | N/A this phase |
 
 ---
