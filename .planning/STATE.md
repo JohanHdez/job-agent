@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Phase 2 context gathered
-last_updated: "2026-03-16T17:52:14.096Z"
+stopped_at: Completed 02-auth-+-users plan 02-01
+last_updated: "2026-03-17T01:23:57.185Z"
 last_activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
 progress:
   total_phases: 7
   completed_phases: 0
-  total_plans: 4
-  completed_plans: 3
+  total_plans: 9
+  completed_plans: 4
   percent: 75
 ---
 
@@ -68,6 +68,7 @@ Progress: [██░░░░░░░░] 10%
 *Updated after each plan completion*
 | Phase 01-foundation P01 | 14 | 3 tasks | 26 files |
 | Phase 01-foundation P04 | 5 | 1 tasks | 1 files |
+| Phase 02-auth-+-users P01 | 3 | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,8 @@ Recent decisions affecting current work:
 - [Phase 01-02]: Coverage exclusions: auth/users (Phase 2), main.ts, app.module.ts, *.module.ts, *.constants.ts, correlation.interceptor.ts (requires live HTTP context)
 - [Phase 01-02]: packages/api renamed to @job-agent/express-api to resolve workspace name collision with apps/api NestJS monolith
 - [Phase 01-foundation]: dev:services prefixes concurrently with 'npm run build -w packages/core &&' so stale dist never blocks downstream compilation (build-before-watch pattern)
+- [Phase 02-auth-+-users]: RedisModule is @Global() imported in AppModule — provides REDIS_CLIENT to all modules without per-module import
+- [Phase 02-auth-+-users]: User schema uses Schema.Types.Mixed (type: Object) for profile/searchPresets — avoids nested schema class, TypeScript enforces shape
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T17:52:14.091Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-auth-+-users/02-CONTEXT.md
+Last session: 2026-03-17T01:23:57.181Z
+Stopped at: Completed 02-auth-+-users plan 02-01
+Resume file: None

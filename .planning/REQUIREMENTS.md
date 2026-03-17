@@ -28,8 +28,8 @@
 
 ### Search Configuration (SRCH)
 
-- [ ] **SRCH-01**: User can configure search: keywords, location, modality (Remote/Hybrid/On-site), target platforms (LinkedIn, Indeed, Computrabajo), seniority, languages, date posted, min score, max applications, excluded companies; config persists in MongoDB and can be saved as a named preset (RF-09)
-- [ ] **SRCH-02**: User can save up to 5 named search presets and switch between them (RF-10)
+- [x] **SRCH-01**: User can configure search: keywords, location, modality (Remote/Hybrid/On-site), target platforms (LinkedIn, Indeed, Computrabajo), seniority, languages, date posted, min score, max applications, excluded companies; config persists in MongoDB and can be saved as a named preset (RF-09)
+- [x] **SRCH-02**: User can save up to 5 named search presets and switch between them (RF-10)
 - [ ] **SRCH-03**: User selects which platforms to search (LinkedIn Jobs, Indeed, Computrabajo); searches run in parallel; results are labeled by platform of origin (RF-11)
 
 ### Automation & Matching (AUTO)
@@ -132,8 +132,8 @@
 | PROF-02 | Phase 2 | Pending |
 | PROF-03 | Phase 2 | Pending |
 | PROF-04 | Phase 2 | Pending |
-| SRCH-01 | Phase 2 | Pending |
-| SRCH-02 | Phase 2 | Pending |
+| SRCH-01 | Phase 2 | Complete |
+| SRCH-02 | Phase 2 | Complete |
 | SRCH-03 | Phase 4 | Pending |
 | AUTO-01 | Phase 4 | Pending |
 | AUTO-02 | Phase 4 | Pending |
