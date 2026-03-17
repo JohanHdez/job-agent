@@ -10,9 +10,9 @@
 
 ### Authentication (AUTH)
 
-- [ ] **AUTH-01**: User can register and log in using LinkedIn OAuth 2.0 — access_token, refresh_token, and basic profile data stored; JWT issued with 24h expiry
-- [ ] **AUTH-02**: User can register and log in using Google OAuth 2.0 — email, name, and photo stored; JWT issued with 24h expiry
-- [ ] **AUTH-03**: All protected routes require a valid JWT; system supports automatic token refresh before expiry without re-login
+- [x] **AUTH-01**: User can register and log in using LinkedIn OAuth 2.0 — access_token, refresh_token, and basic profile data stored; JWT issued with 24h expiry
+- [x] **AUTH-02**: User can register and log in using Google OAuth 2.0 — email, name, and photo stored; JWT issued with 24h expiry
+- [x] **AUTH-03**: All protected routes require a valid JWT; system supports automatic token refresh before expiry without re-login
 - [ ] **AUTH-04**: User can edit their name, contact email, and platform language preference; changes persist in MongoDB
 
 ### Navigation & UX (NAV)
@@ -123,9 +123,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 2 | Pending |
-| AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Complete |
+| AUTH-02 | Phase 2 | Complete |
+| AUTH-03 | Phase 2 | Complete |
 | AUTH-04 | Phase 2 | Pending |
 | NAV-01 | Phase 6 | Pending |
 | PROF-01 | Phase 2 | Pending |

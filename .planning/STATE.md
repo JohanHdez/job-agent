@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 02-auth-+-users plan 02-01
-last_updated: "2026-03-17T01:23:57.185Z"
+stopped_at: Completed 02-auth-+-users plan 02-02
+last_updated: "2026-03-17T01:33:55.879Z"
 last_activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 9
-  completed_plans: 4
+  completed_plans: 5
   percent: 75
 ---
 
@@ -69,6 +69,7 @@ Progress: [██░░░░░░░░] 10%
 | Phase 01-foundation P01 | 14 | 3 tasks | 26 files |
 | Phase 01-foundation P04 | 5 | 1 tasks | 1 files |
 | Phase 02-auth-+-users P01 | 3 | 2 tasks | 12 files |
+| Phase 02-auth-+-users P02 | 7 | 1 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,8 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: dev:services prefixes concurrently with 'npm run build -w packages/core &&' so stale dist never blocks downstream compilation (build-before-watch pattern)
 - [Phase 02-auth-+-users]: RedisModule is @Global() imported in AppModule — provides REDIS_CLIENT to all modules without per-module import
 - [Phase 02-auth-+-users]: User schema uses Schema.Types.Mixed (type: Object) for profile/searchPresets — avoids nested schema class, TypeScript enforces shape
+- [Phase 02-auth-+-users]: Auth code uses randomUUID() (crypto built-in UUID v4) rather than nanoid — no extra dependency, crypto module already imported
+- [Phase 02-auth-+-users]: REFRESH_COOKIE_OPTIONS extracted as module-level const — avoids duplicating cookie options across exchange, refresh, and logout
 
 ### Pending Todos
 
@@ -104,6 +107,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T01:23:57.181Z
-Stopped at: Completed 02-auth-+-users plan 02-01
+Last session: 2026-03-17T01:33:55.874Z
+Stopped at: Completed 02-auth-+-users plan 02-02
 Resume file: None
