@@ -68,7 +68,12 @@ Plans:
   2. The browser EventSource receives progress events (job_found, application_made, session_complete) in real time without polling
   3. If the user refreshes the page mid-session, the SSE stream replays all missed events from the point of disconnect using Last-Event-ID
   4. A browser crash or OOM in the Playwright worker does not crash the NestJS API process — the API continues serving other requests
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Session event types (locked schema), Session Mongoose schema, Redis subscriber provider, BullMQ + SessionsModule registration
+- [ ] 03-02-PLAN.md — SessionsService (session CRUD, ring-buffer event append, Redis Pub/Sub subscribe), SessionsController (POST /sessions 202, GET SSE, DELETE cancel), unit tests
+- [ ] 03-03-PLAN.md — Standalone BullMQ worker process with mock data pipeline, Redis Pub/Sub publishing, MongoDB persistence, child_process.fork spawning from SessionsModule, end-to-end human verification
 
 ### Phase 4: Pipeline — Search + Scoring
 **Goal**: The BullMQ worker runs the full non-destructive pipeline: parse the user's CV, search LinkedIn Jobs + Indeed + Computrabajo with configured filters, score each vacancy 0-100, deduplicate against MongoDB history, and deliver a sorted job list to the user — all without touching LinkedIn's apply flow.
@@ -126,7 +131,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/4 | In Progress|  |
 | 2. Auth + Users | 4/5 | In Progress|  |
-| 3. Sessions + BullMQ | 0/TBD | Not started | - |
+| 3. Sessions + BullMQ | 0/3 | Not started | - |
 | 4. Pipeline — Search + Scoring | 0/TBD | Not started | - |
 | 5. Application Automation | 0/TBD | Not started | - |
 | 6. React Frontend | 0/TBD | Not started | - |
