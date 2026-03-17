@@ -17,10 +17,9 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null;
   accessToken: string | null;
-  refreshToken: string | null;
   isLoading: boolean;
-  /** Persist both JWT tokens after OAuth redirect */
-  setTokens: (at: string, rt: string) => void;
+  /** Store only the access token — refresh token lives in httpOnly cookie */
+  setAccessToken: (at: string) => void;
   /** Store the authenticated user returned by /auth/me */
   setUser: (u: AuthUser) => void;
   /** Clear all auth state (logout) */
@@ -32,16 +31,13 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   accessToken: null,
-  refreshToken: null,
   isLoading: false,
 
-  setTokens: (at: string, rt: string) =>
-    set({ accessToken: at, refreshToken: rt }),
+  setAccessToken: (at: string) => set({ accessToken: at }),
 
   setUser: (u: AuthUser) => set({ user: u }),
 
-  logout: () =>
-    set({ user: null, accessToken: null, refreshToken: null }),
+  logout: () => set({ user: null, accessToken: null }),
 
   setLoading: (v: boolean) => set({ isLoading: v }),
 }));
