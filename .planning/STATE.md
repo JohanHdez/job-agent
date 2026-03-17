@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 02-auth-+-users plan 02-03
-last_updated: "2026-03-17T01:46:11.104Z"
+stopped_at: Completed 02-auth-+-users plan 02-04
+last_updated: "2026-03-17T01:54:36.629Z"
 last_activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 9
-  completed_plans: 6
+  completed_plans: 7
   percent: 75
 ---
 
@@ -71,6 +71,7 @@ Progress: [██░░░░░░░░] 10%
 | Phase 02-auth-+-users P01 | 3 | 2 tasks | 12 files |
 | Phase 02-auth-+-users P02 | 7 | 1 tasks | 7 files |
 | Phase 02-auth-+-users P03 | 9 | 2 tasks | 7 files |
+| Phase 02-auth-+-users PP04 | 6 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Recent decisions affecting current work:
 - [Phase 02-auth-+-users]: mergeProfile uses fill-empty-only semantics: incoming CV data only fills null/empty fields, never overwrites manual edits
 - [Phase 02-auth-+-users]: getUserId() helper in UsersController centralizes JWT userId extraction — all 10 endpoints read userId from JWT, never from body (NF-08)
 - [Phase 02-auth-+-users]: PATCH /presets/active declared before /presets/:id to prevent NestJS route shadowing
+- [Phase 02-auth-+-users]: initApiAuth pattern injects store accessors into axios interceptor at runtime — avoids circular import between api.ts and auth.store.ts
+- [Phase 02-auth-+-users]: All API calls in apps/web must import from src/lib/api.ts — never raw fetch or new axios instances
 
 ### Pending Todos
 
@@ -111,6 +114,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T01:46:11.098Z
-Stopped at: Completed 02-auth-+-users plan 02-03
+Last session: 2026-03-17T01:54:36.625Z
+Stopped at: Completed 02-auth-+-users plan 02-04
 Resume file: None
