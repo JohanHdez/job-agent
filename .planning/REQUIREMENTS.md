@@ -62,7 +62,7 @@
 
 ### Real-Time (RT)
 
-- [ ] **RT-01**: Session search progress updates in real-time in the UI (jobs found, applications made) via SSE or WebSocket without manual polling (RNF-17)
+- [x] **RT-01**: Session search progress updates in real-time in the UI (jobs found, applications made) via SSE or WebSocket without manual polling (RNF-17)
 
 ### Non-Functional (NF)
 
@@ -70,7 +70,7 @@
 - [ ] **NF-02**: Compatibility scoring completes in < 500ms per vacancy; p95 < 500ms at 50 concurrent vacancies (RNF-02)
 - [x] **NF-03**: LinkedIn profile import completes in < 8 seconds end-to-end (RNF-03)
 - [ ] **NF-04**: Personalized email generation via Claude API in < 5 seconds; timeout at 8s; max 2 retries with backoff (RNF-04)
-- [ ] **NF-05**: System supports 100 concurrent users running searches without degradation; p99 < 3s response time (RNF-07)
+- [x] **NF-05**: System supports 100 concurrent users running searches without degradation; p99 < 3s response time (RNF-07)
 - [x] **NF-06**: OAuth tokens and credentials stored encrypted (AES-256-GCM) in MongoDB; never exposed in logs or API responses (RNF-08)
 - [x] **NF-07**: All API routes require valid JWT signed with RS256, 24h expiry; unauthenticated requests return 401 (RNF-09) — HS256 in Phase 1; RS256 deferred to Phase 2
 - [x] **NF-08**: Personal data (CV, history, email) accessible only by the owner user; row-level security on all MongoDB queries (RNF-10)
@@ -151,12 +151,12 @@
 | REPT-02 | Phase 7 | Pending |
 | REPT-03 | Phase 7 | Pending |
 | REPT-04 | Phase 7 | Pending |
-| RT-01 | Phase 3 | Pending |
+| RT-01 | Phase 3 | Complete |
 | NF-01 | Phase 6 | Pending |
 | NF-02 | Phase 4 | Pending |
 | NF-03 | Phase 2 | Complete |
 | NF-04 | Phase 5 | Pending |
-| NF-05 | Phase 3 | Pending |
+| NF-05 | Phase 3 | Complete |
 | NF-06 | Phase 1 | Complete |
 | NF-07 | Phase 1 | Complete |
 | NF-08 | Phase 2 | Complete |

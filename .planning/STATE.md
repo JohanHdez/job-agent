@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Phase 3 context gathered
-last_updated: "2026-03-17T18:24:51.966Z"
+stopped_at: Completed 03-sessions-bullmq plan 03-01
+last_updated: "2026-03-17T22:29:25.288Z"
 last_activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 9
-  completed_plans: 8
+  total_plans: 12
+  completed_plans: 9
   percent: 75
 ---
 
@@ -73,6 +73,7 @@ Progress: [██░░░░░░░░] 10%
 | Phase 02-auth-+-users P03 | 9 | 2 tasks | 7 files |
 | Phase 02-auth-+-users PP04 | 6 | 2 tasks | 9 files |
 | Phase 02-auth-+-users PPP05 | 11 | 3 tasks | 7 files |
+| Phase 03-sessions-bullmq P01 | 9 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,9 @@ Recent decisions affecting current work:
 - [Phase 02-auth-+-users]: All API calls in apps/web must import from src/lib/api.ts — never raw fetch or new axios instances
 - [Phase 02-auth-+-users]: ProfilePage and ConfigPage migrated from raw fetch() to api.ts — all web API calls now use the shared authenticated axios instance
 - [Phase 02-auth-+-users]: PresetManagementSection manages its own state locally — separation of concerns without lifting preset state to ConfigPage parent
+- [Phase 03-sessions-bullmq]: REDIS_SUBSCRIBER is a separate ioredis connection — subscriber mode locks connection, cannot share with REDIS_CLIENT
+- [Phase 03-sessions-bullmq]: BullModule.forRootAsync at app root, BullModule.registerQueue per feature module (search-session queue in SessionsModule)
+- [Phase 03-sessions-bullmq]: StoredSessionEvent.data is Record<string,unknown> — schema-agnostic, no migration needed for new event fields; nextEventId is monotonic int counter on Session document
 
 ### Pending Todos
 
@@ -117,6 +121,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T18:24:51.961Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-sessions-bullmq/03-CONTEXT.md
+Last session: 2026-03-17T22:29:25.282Z
+Stopped at: Completed 03-sessions-bullmq plan 03-01
+Resume file: None

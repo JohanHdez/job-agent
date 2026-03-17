@@ -131,7 +131,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/4 | In Progress|  |
 | 2. Auth + Users | 4/5 | In Progress|  |
-| 3. Sessions + BullMQ | 0/3 | Not started | - |
+| 3. Sessions + BullMQ | 1/3 | In Progress|  |
 | 4. Pipeline — Search + Scoring | 0/TBD | Not started | - |
 | 5. Application Automation | 0/TBD | Not started | - |
 | 6. React Frontend | 0/TBD | Not started | - |
