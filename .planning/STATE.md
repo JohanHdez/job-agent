@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 02-auth-+-users plan 02-04
-last_updated: "2026-03-17T01:54:36.629Z"
+stopped_at: Completed 02-auth-+-users plan 02-05
+last_updated: "2026-03-17T02:10:52.319Z"
 last_activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 75
 ---
 
@@ -72,6 +72,7 @@ Progress: [██░░░░░░░░] 10%
 | Phase 02-auth-+-users P02 | 7 | 1 tasks | 7 files |
 | Phase 02-auth-+-users P03 | 9 | 2 tasks | 7 files |
 | Phase 02-auth-+-users PP04 | 6 | 2 tasks | 9 files |
+| Phase 02-auth-+-users PPP05 | 11 | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,8 @@ Recent decisions affecting current work:
 - [Phase 02-auth-+-users]: PATCH /presets/active declared before /presets/:id to prevent NestJS route shadowing
 - [Phase 02-auth-+-users]: initApiAuth pattern injects store accessors into axios interceptor at runtime — avoids circular import between api.ts and auth.store.ts
 - [Phase 02-auth-+-users]: All API calls in apps/web must import from src/lib/api.ts — never raw fetch or new axios instances
+- [Phase 02-auth-+-users]: ProfilePage and ConfigPage migrated from raw fetch() to api.ts — all web API calls now use the shared authenticated axios instance
+- [Phase 02-auth-+-users]: PresetManagementSection manages its own state locally — separation of concerns without lifting preset state to ConfigPage parent
 
 ### Pending Todos
 
@@ -114,6 +117,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T01:54:36.625Z
-Stopped at: Completed 02-auth-+-users plan 02-04
+Last session: 2026-03-17T02:10:52.315Z
+Stopped at: Completed 02-auth-+-users plan 02-05
 Resume file: None
