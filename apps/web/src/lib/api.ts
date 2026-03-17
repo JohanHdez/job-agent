@@ -54,6 +54,11 @@ api.interceptors.response.use(
     if (!originalRequest || error.response?.status !== 401 || originalRequest._retry) {
       return Promise.reject(error);
     }
+    // Never try to refresh if the failing request IS the refresh endpoint —
+    // that would cause an infinite redirect loop on session expiry.
+    if (originalRequest.url?.includes('/auth/refresh')) {
+      return Promise.reject(error);
+    }
 
     if (isRefreshing) {
       return new Promise((resolve) => {
@@ -79,6 +84,8 @@ api.interceptors.response.use(
       return api(originalRequest);
     } catch {
       logoutFn?.();
+      // Session fully expired — redirect to login with reason so the page can show a message
+      window.location.href = '/login?reason=session_expired';
       return Promise.reject(error);
     } finally {
       isRefreshing = false;

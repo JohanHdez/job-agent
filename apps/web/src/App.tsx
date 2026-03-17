@@ -4,7 +4,7 @@ import { useAuthStore, type AuthUser } from './store/auth.store';
 import { initApiAuth, api } from './lib/api';
 
 const App: React.FC = () => {
-  const { accessToken, setAccessToken, setUser } = useAuthStore();
+  const { accessToken, setAccessToken, setUser, setInitialized } = useAuthStore();
 
   // Wire auth store into API interceptor (runs once, avoids circular import)
   useEffect(() => {
@@ -15,9 +15,19 @@ const App: React.FC = () => {
     );
   }, []);
 
-  // Silent refresh on page load — recover session via httpOnly cookie
+  // Silent refresh on page load — recover session via httpOnly cookie.
+  // Skip on /auth/callback: the callback page handles its own token exchange.
+  // Always call setInitialized() when done so route guards can act.
   useEffect(() => {
-    if (accessToken) return; // already authenticated
+    if (window.location.pathname.startsWith('/auth/callback')) {
+      // Callback page sets its own tokens — mark initialized immediately
+      setInitialized();
+      return;
+    }
+    if (accessToken) {
+      setInitialized();
+      return;
+    }
     api
       .post<{ accessToken: string }>('/auth/refresh', {})
       .then(({ data }) => {
@@ -31,7 +41,10 @@ const App: React.FC = () => {
         }
       })
       .catch(() => {
-        /* unauthenticated, do nothing */
+        /* unauthenticated — leave token null */
+      })
+      .finally(() => {
+        setInitialized();
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

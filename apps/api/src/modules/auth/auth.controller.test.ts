@@ -88,7 +88,8 @@ describe('AuthController', () => {
         'refresh-token',
         expect.objectContaining({
           httpOnly: true,
-          sameSite: 'strict',
+          // 'strict' in production, 'lax' in development/test — match either
+          sameSite: expect.stringMatching(/^(strict|lax)$/),
           path: '/auth/refresh',
           maxAge: 7 * 24 * 60 * 60 * 1000,
         })
@@ -154,7 +155,7 @@ describe('AuthController', () => {
         'new-refresh-token',
         expect.objectContaining({
           httpOnly: true,
-          sameSite: 'strict',
+          sameSite: expect.stringMatching(/^(strict|lax)$/),
           path: '/auth/refresh',
         })
       );

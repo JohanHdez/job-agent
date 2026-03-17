@@ -30,7 +30,6 @@ const mockStoreFns = {
   setLoading: mockSetLoading,
 };
 
-// Mock user response
 const mockUser = {
   id: 'user-1',
   email: 'test@example.com',
@@ -57,28 +56,21 @@ describe('AuthCallbackPage', () => {
     vi.mocked(useAuthStore).mockReturnValue(mockStoreFns as ReturnType<typeof useAuthStore>);
   });
 
-  it('exchanges code and calls setAccessToken, setUser', async () => {
-    mockApiPost.mockResolvedValueOnce({ data: { accessToken: 'at-123', expiresIn: 900 } });
+  it('exchanges code and calls setAccessToken with the returned access token', async () => {
+    mockApiPost.mockResolvedValueOnce({ data: { accessToken: 'at-123', expiresIn: 86400 } });
     mockApiGet.mockResolvedValueOnce({ data: mockUser });
-    mockApiGet.mockResolvedValueOnce({
-      data: { profile: { name: 'Test' }, isComplete: true, missingFields: [] },
-    });
 
     renderCallback('?code=abc-123');
 
     await waitFor(() => {
       expect(mockApiPost).toHaveBeenCalledWith('/auth/exchange', { code: 'abc-123' });
       expect(mockSetAccessToken).toHaveBeenCalledWith('at-123');
-      expect(mockSetUser).toHaveBeenCalledWith(mockUser);
     });
   });
 
-  it('calls GET /auth/me after code exchange', async () => {
-    mockApiPost.mockResolvedValueOnce({ data: { accessToken: 'at-123', expiresIn: 900 } });
+  it('calls GET /auth/me after code exchange to fetch user identity', async () => {
+    mockApiPost.mockResolvedValueOnce({ data: { accessToken: 'at-123', expiresIn: 86400 } });
     mockApiGet.mockResolvedValueOnce({ data: mockUser });
-    mockApiGet.mockResolvedValueOnce({
-      data: { profile: null, isComplete: false, missingFields: ['name'] },
-    });
 
     renderCallback('?code=abc-123');
 
@@ -87,66 +79,43 @@ describe('AuthCallbackPage', () => {
     });
   });
 
-  it('calls GET /users/profile after /auth/me', async () => {
-    mockApiPost.mockResolvedValueOnce({ data: { accessToken: 'at-123', expiresIn: 900 } });
+  it('calls setUser with the response from /auth/me', async () => {
+    mockApiPost.mockResolvedValueOnce({ data: { accessToken: 'at-123', expiresIn: 86400 } });
     mockApiGet.mockResolvedValueOnce({ data: mockUser });
-    mockApiGet.mockResolvedValueOnce({
-      data: { profile: null, isComplete: false, missingFields: ['name'] },
-    });
 
     renderCallback('?code=abc-123');
 
     await waitFor(() => {
-      expect(mockApiGet).toHaveBeenCalledWith('/users/profile');
+      expect(mockSetUser).toHaveBeenCalledWith(mockUser);
     });
   });
 
-  it('navigates to /profile/setup when profile is null', async () => {
-    mockApiPost.mockResolvedValueOnce({ data: { accessToken: 'at-123', expiresIn: 900 } });
+  it('always navigates to /config after successful exchange (OAuth provides basic identity)', async () => {
+    mockApiPost.mockResolvedValueOnce({ data: { accessToken: 'at-123', expiresIn: 86400 } });
     mockApiGet.mockResolvedValueOnce({ data: mockUser });
-    mockApiGet.mockResolvedValueOnce({
-      data: { profile: null, isComplete: false, missingFields: [] },
-    });
 
     renderCallback('?code=abc-123');
 
+    // After navigation, the callback spinner is replaced by the matched route
     await waitFor(() => {
-      // After navigation away, spinner is gone
       expect(screen.queryByText('Completing sign-in...')).not.toBeInTheDocument();
     });
   });
 
-  it('navigates to /profile/setup when missingFields is non-empty', async () => {
-    mockApiPost.mockResolvedValueOnce({ data: { accessToken: 'at-123', expiresIn: 900 } });
+  it('does NOT call GET /users/profile — profile completeness is checked at /config', async () => {
+    mockApiPost.mockResolvedValueOnce({ data: { accessToken: 'at-123', expiresIn: 86400 } });
     mockApiGet.mockResolvedValueOnce({ data: mockUser });
-    mockApiGet.mockResolvedValueOnce({
-      data: { profile: { name: 'Test' }, isComplete: false, missingFields: ['headline', 'skills'] },
-    });
 
     renderCallback('?code=abc-123');
 
     await waitFor(() => {
-      expect(mockApiGet).toHaveBeenCalledWith('/users/profile');
       expect(mockSetUser).toHaveBeenCalledWith(mockUser);
     });
+
+    expect(mockApiGet).not.toHaveBeenCalledWith('/users/profile');
   });
 
-  it('navigates to /config when profile is complete (missingFields empty)', async () => {
-    mockApiPost.mockResolvedValueOnce({ data: { accessToken: 'at-123', expiresIn: 900 } });
-    mockApiGet.mockResolvedValueOnce({ data: mockUser });
-    mockApiGet.mockResolvedValueOnce({
-      data: { profile: { name: 'Test', headline: 'Dev' }, isComplete: true, missingFields: [] },
-    });
-
-    renderCallback('?code=abc-123');
-
-    await waitFor(() => {
-      expect(mockSetAccessToken).toHaveBeenCalledWith('at-123');
-      expect(mockSetUser).toHaveBeenCalledWith(mockUser);
-    });
-  });
-
-  it('redirects to /login without calling API when ?error param present', async () => {
+  it('redirects to /login without calling any API when ?error param is present', async () => {
     renderCallback('?error=access_denied');
 
     await waitFor(() => {
@@ -163,7 +132,7 @@ describe('AuthCallbackPage', () => {
     });
   });
 
-  it('redirects to /login?error=auth_failed when exchange fails', async () => {
+  it('redirects to /login?error=auth_failed when exchange throws', async () => {
     mockApiPost.mockRejectedValueOnce(new Error('Network error'));
 
     renderCallback('?code=bad-code');
@@ -174,12 +143,20 @@ describe('AuthCallbackPage', () => {
     });
   });
 
-  it('never calls setTokens (old two-argument form does not exist)', () => {
-    // The mock store object only has setAccessToken — no setTokens
-    expect(mockStoreFns).not.toHaveProperty('setTokens');
+  it('redirects to /login?error=auth_failed when /auth/me returns an invalid shape', async () => {
+    mockApiPost.mockResolvedValueOnce({ data: { accessToken: 'at-123', expiresIn: 86400 } });
+    // Return a response that fails the isAuthUser type guard
+    mockApiGet.mockResolvedValueOnce({ data: { unexpected: true } });
+
+    renderCallback('?code=abc-123');
+
+    await waitFor(() => {
+      // Exchange was called but setUser was never called due to invalid shape
+      expect(mockSetUser).not.toHaveBeenCalled();
+    });
   });
 
-  it('shows spinner while processing', () => {
+  it('shows spinner while exchange is in flight', () => {
     // Keep mock pending to capture loading state
     mockApiPost.mockReturnValue(new Promise<never>(() => { /* never resolves */ }));
 

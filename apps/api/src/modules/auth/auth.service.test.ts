@@ -7,7 +7,8 @@ import { REDIS_CLIENT } from '../../common/redis/redis.provider.js';
 
 const mockRedis = {
   setex: jest.fn(),
-  getdel: jest.fn(),
+  // exchangeCode uses a Lua script via redis.eval (compatible with Redis 3.0+)
+  eval: jest.fn(),
 };
 
 const mockJwtService = {
@@ -82,7 +83,7 @@ describe('AuthService', () => {
       );
     });
 
-    it('stores tokens in Redis with 30s TTL', async () => {
+    it('stores tokens in Redis with 300s TTL (5-minute window for OAuth round-trip)', async () => {
       mockRedis.setex.mockResolvedValue('OK');
 
       const tokens: TokenPairDto = {
@@ -95,7 +96,7 @@ describe('AuthService', () => {
 
       expect(mockRedis.setex).toHaveBeenCalledWith(
         `auth:code:${code}`,
-        30,
+        300,
         JSON.stringify(tokens)
       );
     });
@@ -110,37 +111,43 @@ describe('AuthService', () => {
         refreshToken: 'refresh-token',
         expiresIn: 86400,
       };
-      mockRedis.getdel.mockResolvedValue(JSON.stringify(tokens));
+      // redis.eval returns the serialized token string (Lua GET result)
+      mockRedis.eval.mockResolvedValue(JSON.stringify(tokens));
 
       const result = await service.exchangeCode('valid-uuid-code');
 
       expect(result).toEqual(tokens);
     });
 
-    it('deletes the code from Redis atomically (GETDEL)', async () => {
+    it('deletes the code atomically via Lua script (GET + DEL in one round-trip)', async () => {
       const tokens: TokenPairDto = {
         accessToken: 'access-token',
         refreshToken: 'refresh-token',
         expiresIn: 86400,
       };
-      mockRedis.getdel.mockResolvedValue(JSON.stringify(tokens));
+      mockRedis.eval.mockResolvedValue(JSON.stringify(tokens));
 
       await service.exchangeCode('some-code');
 
-      expect(mockRedis.getdel).toHaveBeenCalledWith('auth:code:some-code');
+      // eval is called with the Lua script, key count, and the key name
+      expect(mockRedis.eval).toHaveBeenCalledWith(
+        expect.stringContaining("redis.call('GET', KEYS[1])"),
+        1,
+        'auth:code:some-code'
+      );
     });
 
     it('throws UnauthorizedException for an invalid/expired code', async () => {
-      mockRedis.getdel.mockResolvedValue(null);
+      mockRedis.eval.mockResolvedValue(null);
 
       await expect(service.exchangeCode('invalid-code')).rejects.toThrow(
         UnauthorizedException
       );
     });
 
-    it('throws UnauthorizedException for an already-used code (one-time use via GETDEL)', async () => {
+    it('throws UnauthorizedException for an already-used code (one-time use)', async () => {
       // First call returns the token, second call returns null (already consumed)
-      mockRedis.getdel
+      mockRedis.eval
         .mockResolvedValueOnce(
           JSON.stringify({ accessToken: 'a', refreshToken: 'r', expiresIn: 86400 })
         )
@@ -151,7 +158,7 @@ describe('AuthService', () => {
       // First use succeeds
       await expect(service.exchangeCode(code)).resolves.toBeDefined();
 
-      // Second use throws
+      // Second use throws — key was deleted by the Lua script on first call
       await expect(service.exchangeCode(code)).rejects.toThrow(UnauthorizedException);
     });
   });

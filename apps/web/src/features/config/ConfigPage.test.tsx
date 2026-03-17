@@ -79,10 +79,15 @@ function renderConfigPage() {
 describe('ConfigPage — preset management', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: config loads fine
+    // Default: config, profile, and presets all load fine
     mockApiGet.mockImplementation((url: string) => {
       if (url === '/api/config') {
         return Promise.resolve({ data: { config: mockConfig } });
+      }
+      if (url === '/users/profile') {
+        return Promise.resolve({
+          data: { profile: null, isComplete: true, missingFields: [] },
+        });
       }
       if (url === '/users/presets') {
         return Promise.resolve({ data: mockPresets });
@@ -141,6 +146,7 @@ describe('ConfigPage — preset management', () => {
 
     mockApiGet.mockImplementation((url: string) => {
       if (url === '/api/config') return Promise.resolve({ data: { config: mockConfig } });
+      if (url === '/users/profile') return Promise.resolve({ data: { profile: null, isComplete: true, missingFields: [] } });
       if (url === '/users/presets') return Promise.resolve({ data: fivePresets });
       return Promise.resolve({ data: null });
     });

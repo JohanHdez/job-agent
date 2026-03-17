@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore, type AuthUser } from '../../store/auth.store';
 import { api } from '../../lib/api';
@@ -16,26 +16,26 @@ function isAuthUser(value: unknown): value is AuthUser {
   );
 }
 
-interface ProfileResponse {
-  profile: unknown;
-  isComplete: boolean;
-  missingFields: string[];
-}
-
 /**
  * Handles the OAuth redirect from the API server.
  * Reads ?code= from the URL, calls POST /auth/exchange to obtain tokens
  * (refresh token is set as httpOnly cookie, never exposed to JS),
- * fetches user identity, checks profile completeness, then redirects:
- * - First-time users (no profile or missing fields) -> /profile/setup
- * - Returning users with complete profile -> /config
+ * fetches user identity, then always redirects to /config.
+ * Basic identity (name, email, photo) is already populated by the OAuth provider.
+ * Profile completion (skills, experience, etc.) is done via CV upload at /profile.
  */
 const AuthCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { setAccessToken, setUser, setLoading } = useAuthStore();
+  // Guard against React 18 Strict Mode double-invoke: the one-time code is
+  // consumed atomically by Redis GETDEL, so a second exchange call would fail.
+  const exchangedRef = useRef(false);
 
   useEffect(() => {
+    if (exchangedRef.current) return;
+    exchangedRef.current = true;
+
     const errorParam = searchParams.get('error');
     if (errorParam !== null) {
       void navigate(`/login?error=${encodeURIComponent(errorParam)}`);
@@ -70,18 +70,11 @@ const AuthCallbackPage: React.FC = () => {
 
         setUser(data);
 
-        // Check profile status to determine redirect target (locked decision)
-        // If profile is null or any critical fields missing -> /profile/setup
-        // Otherwise -> /config (returning user with complete profile)
-        const profileResponse = await api.get<ProfileResponse>('/users/profile');
-        const { profile, missingFields } = profileResponse.data;
-
-        if (profile === null || missingFields.length > 0) {
-          void navigate('/profile/setup');
-        } else {
-          void navigate('/config');
-        }
-      } catch (_err) {
+        // Always go to /config — OAuth already provides name + email.
+        // Profile completion (skills, experience) happens via CV upload at /profile.
+        void navigate('/config');
+      } catch (err) {
+        console.error('[AuthCallback] login failed:', err);
         void navigate('/login?error=auth_failed');
       } finally {
         setLoading(false);

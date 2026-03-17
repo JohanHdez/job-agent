@@ -5,7 +5,6 @@ import { randomUUID } from 'crypto';
 import { writeFile, unlink } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { runCvParser } from '@job-agent/cv-parser';
 import type { ProfessionalProfile, SearchPresetType } from '@job-agent/core';
 import { User, UserDocument } from './schemas/user.schema.js';
 import { encryptToken } from '../../common/crypto/token-cipher.js';
@@ -228,6 +227,7 @@ export class UsersService {
     try {
       await writeFile(tmpPath, buffer);
 
+      const { runCvParser } = await import('@job-agent/cv-parser');
       const profile = await Promise.race([
         runCvParser(tmpPath),
         new Promise<never>((_, reject) =>

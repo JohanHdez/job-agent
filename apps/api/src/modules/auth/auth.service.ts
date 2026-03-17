@@ -25,7 +25,7 @@ const ACCESS_TOKEN_TTL_SECONDS = 24 * 60 * 60; // 24 hours
 const REFRESH_TOKEN_TTL_DAYS = 7;
 
 /** TTL for one-time auth codes used in the code-exchange flow */
-const AUTH_CODE_TTL_SECONDS = 30;
+const AUTH_CODE_TTL_SECONDS = 300; // 5 minutes — enough for OAuth round-trip + React hydration
 
 /**
  * Handles JWT issuance, rotation, revocation, and the Redis-backed
@@ -81,14 +81,21 @@ export class AuthService {
 
   /**
    * Exchanges a one-time auth code for its associated token pair.
-   * The code is consumed atomically — it cannot be reused.
+   * The code is consumed atomically via a Lua script (GET + DEL in one round-trip).
+   * Compatible with Redis 2.6+ — does not require GETDEL (Redis 6.2+).
    *
    * @param code - The UUID v4 code issued by storeAuthCode().
    * @throws UnauthorizedException if the code is invalid, expired, or already used.
    */
   async exchangeCode(code: string): Promise<TokenPairDto> {
     const key = `auth:code:${code}`;
-    const raw = await this.redis.getdel(key);
+    // Atomic GET + DEL: reads the value and deletes it in a single operation.
+    // If the key does not exist, returns null (code expired or already used).
+    const raw = await this.redis.eval(
+      "local v = redis.call('GET', KEYS[1]); if v then redis.call('DEL', KEYS[1]) end; return v",
+      1,
+      key
+    ) as string | null;
     if (!raw) throw new UnauthorizedException('Invalid or expired auth code');
     return JSON.parse(raw) as TokenPairDto;
   }

@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { ProfessionalProfile } from '@job-agent/core';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/logger';
 
 /**
  * System prompt instructing Claude to return ONLY a JSON object conforming

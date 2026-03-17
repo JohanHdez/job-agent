@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { AppConfig } from '@job-agent/core';
 import { api } from '../../lib/api';
 
@@ -637,21 +638,23 @@ const PresetManagementSection: React.FC<PresetManagementSectionProps> = ({
 
 // ─── ConfigPage ───────────────────────────────────────────────────────────────
 const ConfigPage: React.FC = () => {
+  const navigate = useNavigate();
   const [form, setForm] = useState<AppConfig>(DEFAULT_CONFIG);
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [missingProfileFields, setMissingProfileFields] = useState<string[]>([]);
 
-  // Load config on mount
+  // Load config and profile completeness in parallel on mount
   useEffect(() => {
-    fetchConfig()
-      .then((config) => {
-        if (config) setForm(config);
-        setIsLoading(false);
-      })
-      .catch(() => {
-        setIsLoading(false);
-      });
+    Promise.all([
+      fetchConfig().catch(() => null),
+      api.get<{ missingFields: string[] }>('/users/profile').catch(() => null),
+    ]).then(([config, profileRes]) => {
+      if (config) setForm(config);
+      if (profileRes) setMissingProfileFields(profileRes.data.missingFields);
+      setIsLoading(false);
+    });
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -780,7 +783,54 @@ const ConfigPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Banner */}
+        {/* Incomplete profile banner */}
+        {missingProfileFields.length > 0 && (
+          <div
+            role="alert"
+            style={{
+              background: 'rgba(245,158,11,0.08)',
+              border: '1px solid rgba(245,158,11,0.25)',
+              borderRadius: 10,
+              padding: '12px 16px',
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                <path d="M12 9v4" /><path d="M12 17h.01" />
+              </svg>
+              <span style={{ fontSize: 13, color: '#fbbf24' }}>
+                Your profile is incomplete — upload your CV so the agent can match jobs accurately.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => void navigate('/profile')}
+              style={{
+                background: 'rgba(245,158,11,0.15)',
+                border: '1px solid rgba(245,158,11,0.35)',
+                borderRadius: 8,
+                color: '#fbbf24',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 700,
+                padding: '6px 14px',
+                fontFamily: 'Inter, system-ui, sans-serif',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Go to Profile →
+            </button>
+          </div>
+        )}
+
+        {/* Config save banner */}
         {banner && (
           <div
             role="alert"

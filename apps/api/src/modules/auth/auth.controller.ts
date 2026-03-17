@@ -23,13 +23,18 @@ interface AuthenticatedRequest extends Request {
   user: UserDocument;
 }
 
-const FRONTEND_URL = process.env['FRONTEND_URL'] ?? 'http://localhost:3000';
+/** Resolved at request-time so ConfigModule has already populated process.env */
+function frontendUrl(): string {
+  return process.env['FRONTEND_URL'] ?? 'http://localhost:5173';
+}
 
 /** Cookie options for the refresh token */
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env['NODE_ENV'] === 'production',
-  sameSite: 'strict' as const,
+  // SameSite=Strict blocks cookies on cross-origin XHR (localhost:5173 → localhost:3001).
+  // Use 'lax' in development so the browser sends the cookie on same-site API calls.
+  sameSite: (process.env['NODE_ENV'] === 'production' ? 'strict' : 'lax') as 'strict' | 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
   path: '/auth/refresh',
 };
@@ -55,6 +60,7 @@ export class AuthController {
    * Redirects the browser to LinkedIn's OAuth consent page.
    */
   @Get('linkedin')
+  @Public()
   @UseGuards(LinkedInAuthGuard)
   linkedinLogin(): void {
     // Passport redirects — no body needed
@@ -66,6 +72,7 @@ export class AuthController {
    * Stores tokens in Redis and redirects with a one-time code (no tokens in URL).
    */
   @Get('linkedin/callback')
+  @Public()
   @UseGuards(LinkedInAuthGuard)
   async linkedinCallback(
     @Req() req: AuthenticatedRequest,
@@ -74,9 +81,9 @@ export class AuthController {
     try {
       const tokens = await this.authService.issueTokens(req.user);
       const code = await this.authService.storeAuthCode(tokens);
-      res.redirect(`${FRONTEND_URL}/auth/callback?code=${code}`);
+      res.redirect(`${frontendUrl()}/auth/callback?code=${code}`);
     } catch {
-      res.redirect(`${FRONTEND_URL}/login?error=linkedin_auth_failed`);
+      res.redirect(`${frontendUrl()}/login?error=linkedin_auth_failed`);
     }
   }
 
@@ -87,6 +94,7 @@ export class AuthController {
    * Redirects the browser to Google's OAuth consent page.
    */
   @Get('google')
+  @Public()
   @UseGuards(GoogleAuthGuard)
   googleLogin(): void {
     // Passport redirects — no body needed
@@ -98,6 +106,7 @@ export class AuthController {
    * Stores tokens in Redis and redirects with a one-time code (no tokens in URL).
    */
   @Get('google/callback')
+  @Public()
   @UseGuards(GoogleAuthGuard)
   async googleCallback(
     @Req() req: AuthenticatedRequest,
@@ -106,9 +115,9 @@ export class AuthController {
     try {
       const tokens = await this.authService.issueTokens(req.user);
       const code = await this.authService.storeAuthCode(tokens);
-      res.redirect(`${FRONTEND_URL}/auth/callback?code=${code}`);
+      res.redirect(`${frontendUrl()}/auth/callback?code=${code}`);
     } catch {
-      res.redirect(`${FRONTEND_URL}/login?error=google_auth_failed`);
+      res.redirect(`${frontendUrl()}/login?error=google_auth_failed`);
     }
   }
 

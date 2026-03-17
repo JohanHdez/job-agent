@@ -11,7 +11,13 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     logger: false,
     cors: {
-      origin: process.env['FRONTEND_URL'] ?? 'http://localhost:3000',
+      // Use a function so the origin is resolved per-request, AFTER ConfigModule
+      // has loaded .env into process.env (static string is evaluated at bootstrap
+      // time before dotenv runs, so it would always fall back to the default).
+      origin: (_origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
+        const allowed = process.env['FRONTEND_URL'] ?? 'http://localhost:5173';
+        cb(null, !_origin || _origin === allowed);
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     },
