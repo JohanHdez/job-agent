@@ -1,8 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, RequestTimeoutException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { randomUUID } from 'crypto';
+import { writeFile, unlink } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { runCvParser } from '@job-agent/cv-parser';
+import type { ProfessionalProfile, SearchPresetType } from '@job-agent/core';
 import { User, UserDocument } from './schemas/user.schema.js';
 import { encryptToken } from '../../common/crypto/token-cipher.js';
+import { UpdateUserDto } from './dto/update-user.dto.js';
+import { UpdateProfileDto } from './dto/update-profile.dto.js';
+import { CreatePresetDto } from './dto/create-preset.dto.js';
+import { UpdatePresetDto } from './dto/update-preset.dto.js';
 
 export interface UpsertLinkedInUserDto {
   linkedinId: string;
@@ -123,5 +133,195 @@ export class UsersService {
         },
       })
       .exec();
+  }
+
+  // ── Phase 2: Profile + User identity management ──────────────────────────
+
+  /**
+   * Updates editable user identity fields (name, contactEmail, languagePreference).
+   * Uses { _id: userId } filter — NF-08 row-level security.
+   */
+  async updateUser(userId: string, dto: UpdateUserDto): Promise<UserDocument> {
+    const updateFields: Record<string, unknown> = {};
+    if (dto.name !== undefined) updateFields['name'] = dto.name;
+    if (dto.contactEmail !== undefined) updateFields['contactEmail'] = dto.contactEmail;
+    if (dto.languagePreference !== undefined) updateFields['languagePreference'] = dto.languagePreference;
+
+    const user = await this.userModel.findOneAndUpdate(
+      { _id: userId },
+      { $set: updateFields },
+      { new: true, runValidators: true }
+    ).exec();
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  /**
+   * Merges an incoming profile into the user's existing profile.
+   * Fill-empty-only semantics: existing non-empty fields are never overwritten.
+   * Used by CV upload pipeline (PROF-02).
+   */
+  async mergeProfile(userId: string, incoming: Partial<ProfessionalProfile>): Promise<UserDocument> {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) throw new NotFoundException('User not found');
+
+    const existing = (user.profile as Partial<ProfessionalProfile> | null) ?? {};
+    const merged: Record<string, unknown> = { ...incoming };
+
+    for (const key of Object.keys(incoming) as Array<keyof ProfessionalProfile>) {
+      const existingVal = existing[key];
+      if (Array.isArray(existingVal) && existingVal.length > 0) {
+        merged[key] = existingVal;
+      } else if (existingVal !== undefined && existingVal !== null && existingVal !== '') {
+        merged[key] = existingVal;
+      }
+    }
+
+    return (await this.userModel.findOneAndUpdate(
+      { _id: userId },
+      { $set: { profile: merged } },
+      { new: true, runValidators: true }
+    ).exec()) as UserDocument;
+  }
+
+  /**
+   * Directly overwrites the provided profile fields (PROF-03 edit mode).
+   * Unlike mergeProfile, this always sets the given fields regardless of existing values.
+   */
+  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<UserDocument> {
+    const updateFields: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(dto)) {
+      if (value !== undefined) updateFields[`profile.${key}`] = value;
+    }
+
+    const user = await this.userModel.findOneAndUpdate(
+      { _id: userId },
+      { $set: updateFields },
+      { new: true, runValidators: true }
+    ).exec();
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  /**
+   * Returns missing profile fields required for job search.
+   * Missing = skills is empty, seniority is absent, or experience is empty (PROF-04).
+   */
+  checkProfileCompleteness(user: UserDocument): string[] {
+    const profile = user.profile as Partial<ProfessionalProfile> | null;
+    const missing: string[] = [];
+    if (!profile) return ['skills', 'seniority', 'experience'];
+    if (!profile.skills || profile.skills.length === 0) missing.push('skills');
+    if (!profile.seniority) missing.push('seniority');
+    if (!profile.experience || profile.experience.length === 0) missing.push('experience');
+    return missing;
+  }
+
+  /**
+   * Accepts a PDF buffer, writes to a temp file, parses with Claude API via cv-parser,
+   * then merge-applies the result to the user's profile.
+   * Enforces 7-second timeout (NF-03). Always cleans up the temp file.
+   */
+  async importCvProfile(userId: string, buffer: Buffer): Promise<UserDocument> {
+    const CV_PARSE_TIMEOUT_MS = 7000;
+    const tmpPath = join(tmpdir(), `cv-${randomUUID()}.pdf`);
+    try {
+      await writeFile(tmpPath, buffer);
+
+      const profile = await Promise.race([
+        runCvParser(tmpPath),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new RequestTimeoutException('CV parsing timed out (>7s)')),
+            CV_PARSE_TIMEOUT_MS
+          )
+        ),
+      ]);
+
+      return this.mergeProfile(userId, profile);
+    } finally {
+      await unlink(tmpPath).catch(() => { /* best-effort cleanup */ });
+    }
+  }
+
+  // ── Phase 2: Search preset CRUD ──────────────────────────────────────────
+
+  /** Returns the user's named search presets (SRCH-01). */
+  async getPresets(userId: string): Promise<SearchPresetType[]> {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) throw new NotFoundException('User not found');
+    return (user.searchPresets as SearchPresetType[]) ?? [];
+  }
+
+  /**
+   * Creates a new named search preset and adds it to the user's presets array.
+   * Enforces 5-preset maximum (SRCH-02).
+   */
+  async createPreset(userId: string, dto: CreatePresetDto): Promise<SearchPresetType> {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) throw new NotFoundException('User not found');
+    if ((user.searchPresets ?? []).length >= 5) {
+      throw new BadRequestException('Maximum 5 presets reached. Delete one first.');
+    }
+
+    const preset: SearchPresetType = {
+      id: randomUUID(),
+      name: dto.name,
+      keywords: dto.keywords,
+      location: dto.location,
+      modality: dto.modality as SearchPresetType['modality'],
+      platforms: dto.platforms as SearchPresetType['platforms'],
+      seniority: dto.seniority,
+      languages: dto.languages,
+      datePosted: dto.datePosted as SearchPresetType['datePosted'],
+      minScoreToApply: dto.minScoreToApply,
+      maxApplicationsPerSession: dto.maxApplicationsPerSession,
+      excludedCompanies: dto.excludedCompanies ?? [],
+    };
+
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $push: { searchPresets: preset } }
+    );
+
+    return preset;
+  }
+
+  /** Updates the fields of an existing search preset. Returns the updated user document. */
+  async updatePreset(userId: string, presetId: string, dto: UpdatePresetDto): Promise<UserDocument> {
+    const setFields: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(dto)) {
+      if (value !== undefined) setFields[`searchPresets.$.${key}`] = value;
+    }
+
+    const user = await this.userModel.findOneAndUpdate(
+      { _id: userId, 'searchPresets.id': presetId },
+      { $set: setFields },
+      { new: true, runValidators: true }
+    ).exec();
+    if (!user) throw new NotFoundException('Preset not found');
+    return user;
+  }
+
+  /** Removes a preset from the user's presets array. */
+  async deletePreset(userId: string, presetId: string): Promise<UserDocument> {
+    const user = await this.userModel.findOneAndUpdate(
+      { _id: userId },
+      { $pull: { searchPresets: { id: presetId } } },
+      { new: true }
+    ).exec();
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  /** Sets the active preset for job search. */
+  async setActivePreset(userId: string, presetId: string): Promise<UserDocument> {
+    const user = await this.userModel.findOneAndUpdate(
+      { _id: userId },
+      { $set: { activePresetId: presetId } },
+      { new: true }
+    ).exec();
+    if (!user) throw new NotFoundException('User not found');
+    return user;
   }
 }
