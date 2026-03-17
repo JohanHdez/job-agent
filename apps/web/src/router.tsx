@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
+import AppLayout from './components/AppLayout.tsx';
 import LandingPage from './features/landing/LandingPage.tsx';
 import LoginPage from './features/auth/LoginPage.tsx';
 import AuthCallbackPage from './features/auth/AuthCallbackPage.tsx';
@@ -28,15 +29,20 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // Protected: redirect to /login if not authenticated
+      // Protected: redirect to /login if not authenticated, then render with sidebar
       {
         element: <RequireAuth />,
         children: [
-          { path: 'profile', element: <ProfilePage /> },
-          { path: 'profile/setup', element: <ProfileSetupPage /> },
-          { path: 'config', element: <ConfigPage /> },
-          { path: 'history', element: <ApplicationHistoryPage /> },
-          { path: 'report', element: <SessionReportPage /> },
+          {
+            element: <AppLayout />,
+            children: [
+              { path: 'profile', element: <ProfilePage /> },
+              { path: 'profile/setup', element: <ProfileSetupPage /> },
+              { path: 'config', element: <ConfigPage /> },
+              { path: 'history', element: <ApplicationHistoryPage /> },
+              { path: 'report', element: <SessionReportPage /> },
+            ],
+          },
         ],
       },
     ],
