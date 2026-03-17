@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore, type AuthUser } from '../../store/auth.store';
+import { api } from '../../lib/api';
 
 /** Type guard for the /auth/me response */
 function isAuthUser(value: unknown): value is AuthUser {
@@ -15,15 +16,24 @@ function isAuthUser(value: unknown): value is AuthUser {
   );
 }
 
+interface ProfileResponse {
+  profile: unknown;
+  isComplete: boolean;
+  missingFields: string[];
+}
+
 /**
  * Handles the OAuth redirect from the API server.
- * Reads accessToken + refreshToken from the URL search params,
- * fetches the user profile, then redirects to /config.
+ * Reads ?code= from the URL, calls POST /auth/exchange to obtain tokens
+ * (refresh token is set as httpOnly cookie, never exposed to JS),
+ * fetches user identity, checks profile completeness, then redirects:
+ * - First-time users (no profile or missing fields) -> /profile/setup
+ * - Returning users with complete profile -> /config
  */
 const AuthCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setTokens, setUser, setLoading } = useAuthStore();
+  const { setAccessToken, setUser, setLoading } = useAuthStore();
 
   useEffect(() => {
     const errorParam = searchParams.get('error');
@@ -32,42 +42,52 @@ const AuthCallbackPage: React.FC = () => {
       return;
     }
 
-    const accessToken = searchParams.get('accessToken');
-    const refreshToken = searchParams.get('refreshToken');
-
-    if (!accessToken || !refreshToken) {
-      void navigate('/login?error=missing_tokens');
+    const code = searchParams.get('code');
+    if (!code) {
+      void navigate('/login?error=missing_code');
       return;
     }
 
-    setTokens(accessToken, refreshToken);
     setLoading(true);
 
     (async () => {
       try {
-        const response = await fetch('http://localhost:3001/auth/me', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
+        // Exchange one-time code for tokens (refresh token set as httpOnly cookie)
+        const exchangeResponse = await api.post<{ accessToken: string; expiresIn: number }>(
+          '/auth/exchange',
+          { code }
+        );
+        const { accessToken } = exchangeResponse.data;
+        setAccessToken(accessToken);
 
-        if (!response.ok) {
-          throw new Error(`Auth check failed with status ${response.status}`);
-        }
-
-        const data: unknown = await response.json();
+        // Fetch user identity
+        const meResponse = await api.get<unknown>('/auth/me');
+        const data = meResponse.data;
 
         if (!isAuthUser(data)) {
           throw new Error('Unexpected shape returned from /auth/me');
         }
 
         setUser(data);
-        void navigate('/config');
+
+        // Check profile status to determine redirect target (locked decision)
+        // If profile is null or any critical fields missing -> /profile/setup
+        // Otherwise -> /config (returning user with complete profile)
+        const profileResponse = await api.get<ProfileResponse>('/users/profile');
+        const { profile, missingFields } = profileResponse.data;
+
+        if (profile === null || missingFields.length > 0) {
+          void navigate('/profile/setup');
+        } else {
+          void navigate('/config');
+        }
       } catch (_err) {
         void navigate('/login?error=auth_failed');
       } finally {
         setLoading(false);
       }
     })();
-  }, [searchParams, navigate, setTokens, setUser, setLoading]);
+  }, [searchParams, navigate, setAccessToken, setUser, setLoading]);
 
   return (
     <div
@@ -80,7 +100,6 @@ const AuthCallbackPage: React.FC = () => {
         fontFamily: "'Inter', system-ui, sans-serif",
       }}
     >
-      {/* Spinner */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
         <div
           style={{
@@ -93,10 +112,9 @@ const AuthCallbackPage: React.FC = () => {
           }}
         />
         <p style={{ color: '#9090a8', fontSize: '14px', margin: 0 }}>
-          Completing sign-in…
+          Completing sign-in...
         </p>
       </div>
-
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }

@@ -18,7 +18,7 @@ describe('auth.store', () => {
   });
 
   it('does NOT have setTokens method (old two-arg form removed)', () => {
-    const state = useAuthStore.getState() as Record<string, unknown>;
+    const state = useAuthStore.getState() as unknown as Record<string, unknown>;
     expect(state['setTokens']).toBeUndefined();
   });
 
