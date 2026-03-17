@@ -18,16 +18,11 @@ const config: Config = {
     '**/*.(t|j)s',
     // Exclude barrel files
     '!**/index.(t|j)s',
-    // Exclude Phase 2 modules — auth and users have no Phase 1 tests (per plan decision)
-    '!**/modules/auth/**',
-    '!**/modules/users/**',
     // Exclude bootstrap/wiring files — not unit-testable in isolation
     '!**/main.(t|j)s',
     '!**/app.module.(t|j)s',
     // Exclude NestJS module wiring files (tested indirectly via integration)
     '!**/*.module.(t|j)s',
-    // Exclude token cipher — tested in Phase 2 alongside auth
-    '!**/crypto/**',
     // Exclude constants files — plain re-exports with no logic
     '!**/*.constants.(t|j)s',
     // Exclude correlation interceptor — requires live HTTP context, covered by e2e tests
