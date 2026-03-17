@@ -6,6 +6,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { LoggerModule } from './modules/logger/logger.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { RedisModule } from './common/redis/redis.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { CorrelationInterceptor } from './common/interceptors/correlation.interceptor.js';
 
@@ -31,6 +32,7 @@ import { CorrelationInterceptor } from './common/interceptors/correlation.interc
     }),
     LoggerModule,
     HealthModule,
+    RedisModule,
     UsersModule,
     AuthModule,
   ],
