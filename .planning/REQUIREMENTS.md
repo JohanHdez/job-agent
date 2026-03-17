@@ -13,7 +13,7 @@
 - [x] **AUTH-01**: User can register and log in using LinkedIn OAuth 2.0 — access_token, refresh_token, and basic profile data stored; JWT issued with 24h expiry
 - [x] **AUTH-02**: User can register and log in using Google OAuth 2.0 — email, name, and photo stored; JWT issued with 24h expiry
 - [x] **AUTH-03**: All protected routes require a valid JWT; system supports automatic token refresh before expiry without re-login
-- [ ] **AUTH-04**: User can edit their name, contact email, and platform language preference; changes persist in MongoDB
+- [x] **AUTH-04**: User can edit their name, contact email, and platform language preference; changes persist in MongoDB
 
 ### Navigation & UX (NAV)
 
@@ -21,10 +21,10 @@
 
 ### Profile (PROF)
 
-- [ ] **PROF-01**: System imports professional profile from LinkedIn API using OAuth token — work experience, education, skills, languages, location, headline → ProfessionalProfileType (RF-05)
-- [ ] **PROF-02**: User can upload a PDF CV; system parses it with Claude API and generates ProfessionalProfileType with >= 85% accuracy on critical fields (RF-06)
-- [ ] **PROF-03**: User can review imported profile in an editable form (skills, seniority, languages, experience) and save changes for use in future searches (RF-07)
-- [ ] **PROF-04**: If imported profile lacks critical fields (skills, minimum experience), system shows an alert with a list of missing fields and guidance to complete them (RF-08)
+- [x] **PROF-01**: System imports professional profile from LinkedIn API using OAuth token — work experience, education, skills, languages, location, headline → ProfessionalProfileType (RF-05)
+- [x] **PROF-02**: User can upload a PDF CV; system parses it with Claude API and generates ProfessionalProfileType with >= 85% accuracy on critical fields (RF-06)
+- [x] **PROF-03**: User can review imported profile in an editable form (skills, seniority, languages, experience) and save changes for use in future searches (RF-07)
+- [x] **PROF-04**: If imported profile lacks critical fields (skills, minimum experience), system shows an alert with a list of missing fields and guidance to complete them (RF-08)
 
 ### Search Configuration (SRCH)
 
@@ -68,12 +68,12 @@
 
 - [ ] **NF-01**: Dashboard loads in < 2 seconds; Lighthouse Performance >= 85; LCP < 2.5s (RNF-01)
 - [ ] **NF-02**: Compatibility scoring completes in < 500ms per vacancy; p95 < 500ms at 50 concurrent vacancies (RNF-02)
-- [ ] **NF-03**: LinkedIn profile import completes in < 8 seconds end-to-end (RNF-03)
+- [x] **NF-03**: LinkedIn profile import completes in < 8 seconds end-to-end (RNF-03)
 - [ ] **NF-04**: Personalized email generation via Claude API in < 5 seconds; timeout at 8s; max 2 retries with backoff (RNF-04)
 - [ ] **NF-05**: System supports 100 concurrent users running searches without degradation; p99 < 3s response time (RNF-07)
 - [x] **NF-06**: OAuth tokens and credentials stored encrypted (AES-256-GCM) in MongoDB; never exposed in logs or API responses (RNF-08)
 - [x] **NF-07**: All API routes require valid JWT signed with RS256, 24h expiry; unauthenticated requests return 401 (RNF-09) — HS256 in Phase 1; RS256 deferred to Phase 2
-- [ ] **NF-08**: Personal data (CV, history, email) accessible only by the owner user; row-level security on all MongoDB queries (RNF-10)
+- [x] **NF-08**: Personal data (CV, history, email) accessible only by the owner user; row-level security on all MongoDB queries (RNF-10)
 - [ ] **NF-09**: Sensitive env vars (API keys, credentials) never committed to repo; CI/CD fails if secrets detected in code (RNF-11)
 - [x] **NF-10**: Unit test coverage >= 70% on packages/shared/types and core NestJS modules; build fails below threshold (RNF-12)
 - [x] **NF-11**: Zero TypeScript errors in strict mode; `any` prohibited throughout codebase; tsc --noEmit returns 0 errors in CI/CD (RNF-13)
@@ -126,12 +126,12 @@
 | AUTH-01 | Phase 2 | Complete |
 | AUTH-02 | Phase 2 | Complete |
 | AUTH-03 | Phase 2 | Complete |
-| AUTH-04 | Phase 2 | Pending |
+| AUTH-04 | Phase 2 | Complete |
 | NAV-01 | Phase 6 | Pending |
-| PROF-01 | Phase 2 | Pending |
-| PROF-02 | Phase 2 | Pending |
-| PROF-03 | Phase 2 | Pending |
-| PROF-04 | Phase 2 | Pending |
+| PROF-01 | Phase 2 | Complete |
+| PROF-02 | Phase 2 | Complete |
+| PROF-03 | Phase 2 | Complete |
+| PROF-04 | Phase 2 | Complete |
 | SRCH-01 | Phase 2 | Complete |
 | SRCH-02 | Phase 2 | Complete |
 | SRCH-03 | Phase 4 | Pending |
@@ -154,12 +154,12 @@
 | RT-01 | Phase 3 | Pending |
 | NF-01 | Phase 6 | Pending |
 | NF-02 | Phase 4 | Pending |
-| NF-03 | Phase 2 | Pending |
+| NF-03 | Phase 2 | Complete |
 | NF-04 | Phase 5 | Pending |
 | NF-05 | Phase 3 | Pending |
 | NF-06 | Phase 1 | Complete |
 | NF-07 | Phase 1 | Complete |
-| NF-08 | Phase 2 | Pending |
+| NF-08 | Phase 2 | Complete |
 | NF-09 | Phase 1 | Pending |
 | NF-10 | Phase 1 | Complete |
 | NF-11 | Phase 1 | Complete |
