@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpStatus, UnauthorizedException } from '@nestjs/common';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { ExchangeCodeDto } from './dto/exchange-code.dto.js';
-import { UserDocument } from '../users/schemas/user.schema.js';
+import type { UserDocument } from '../users/schemas/user.schema.js';
 
 const mockAuthService = {
   issueTokens: jest.fn(),
@@ -27,7 +27,10 @@ function buildMockRes(): Response {
 }
 
 /** Build a mock Express Request with cookies */
-function buildMockReq(cookies: Record<string, string> = {}, user?: Partial<UserDocument>): Request {
+function buildMockReq(
+  cookies: Record<string, string> = {},
+  user?: Partial<UserDocument>
+): Request {
   return {
     cookies,
     user: user ?? {
@@ -178,8 +181,7 @@ describe('AuthController', () => {
       });
       mockAuthService.storeAuthCode.mockResolvedValue('test-code-uuid');
 
-      const userWithIdentity = {
-        _id: '507f1f77bcf86cd799439011',
+      const userWithIdentity: Partial<UserDocument> = {
         email: 'user@linkedin.com',
         name: 'LinkedIn User',
         photo: 'https://media.linkedin.com/photo.jpg',
@@ -187,10 +189,10 @@ describe('AuthController', () => {
         linkedinId: 'li-123',
       };
 
-      const req = buildMockReq({}, userWithIdentity as Partial<UserDocument>);
+      const req = buildMockReq({}, userWithIdentity);
       const res = buildMockRes();
 
-      await controller.linkedinCallback(req, res);
+      await controller.linkedinCallback(req as unknown as Parameters<typeof controller.linkedinCallback>[0], res);
 
       // Verify issueTokens was called with req.user that contains identity fields
       const calledUser = (mockAuthService.issueTokens.mock.calls[0] as [UserDocument])[0];
@@ -211,7 +213,7 @@ describe('AuthController', () => {
       const req = buildMockReq();
       const res = buildMockRes();
 
-      await controller.linkedinCallback(req, res);
+      await controller.linkedinCallback(req as unknown as Parameters<typeof controller.linkedinCallback>[0], res);
 
       expect((res.redirect as jest.Mock)).toHaveBeenCalledWith(
         expect.stringMatching(/\/auth\/callback\?code=test-uuid-code$/)
@@ -229,7 +231,7 @@ describe('AuthController', () => {
       const req = buildMockReq();
       const res = buildMockRes();
 
-      await controller.linkedinCallback(req, res);
+      await controller.linkedinCallback(req as unknown as Parameters<typeof controller.linkedinCallback>[0], res);
 
       const redirectUrl = (res.redirect as jest.Mock).mock.calls[0][0] as string;
       expect(redirectUrl).not.toContain('secret-access-token');
@@ -239,7 +241,7 @@ describe('AuthController', () => {
     });
   });
 
-  // ── HTTP status codes ──────────────────────────────────────────────────────
+  // ── HTTP status decorators ─────────────────────────────────────────────────
 
   describe('HTTP status decorators', () => {
     it('exchange method exists and HttpStatus.OK is 200', () => {

@@ -1,10 +1,12 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { Types } from 'mongoose';
+import type Redis from 'ioredis';
 import { UsersService } from '../users/users.service.js';
 import { UserDocument } from '../users/schemas/user.schema.js';
 import type { JwtPayload } from './strategies/jwt.strategy.js';
+import { REDIS_CLIENT } from '../../common/redis/redis.provider.js';
 
 /** Converts a Mongoose document _id to a plain string. */
 function toId(id: unknown): string {
@@ -22,15 +24,19 @@ export interface TokenPairDto {
 const ACCESS_TOKEN_TTL_SECONDS = 24 * 60 * 60; // 24 hours
 const REFRESH_TOKEN_TTL_DAYS = 7;
 
+/** TTL for one-time auth codes used in the code-exchange flow */
+const AUTH_CODE_TTL_SECONDS = 30;
+
 /**
- * Handles JWT issuance, rotation, and revocation.
- * Refresh tokens are stored in MongoDB (production: migrate to Redis).
+ * Handles JWT issuance, rotation, revocation, and the Redis-backed
+ * one-time code-exchange flow for secure OAuth callbacks.
  */
 @Injectable()
 export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly usersService: UsersService
+    private readonly usersService: UsersService,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis
   ) {}
 
   /**
@@ -56,6 +62,35 @@ export class AuthService {
     );
 
     return { accessToken, refreshToken, expiresIn: ACCESS_TOKEN_TTL_SECONDS };
+  }
+
+  /**
+   * Stores a token pair in Redis under a one-time UUID code.
+   * The code expires after AUTH_CODE_TTL_SECONDS (30s).
+   * Used by OAuth callbacks to avoid putting tokens in URL params.
+   *
+   * @param tokens - The token pair to store.
+   * @returns A UUID v4 string that can be exchanged once for the tokens.
+   */
+  async storeAuthCode(tokens: TokenPairDto): Promise<string> {
+    const code = randomUUID();
+    const key = `auth:code:${code}`;
+    await this.redis.setex(key, AUTH_CODE_TTL_SECONDS, JSON.stringify(tokens));
+    return code;
+  }
+
+  /**
+   * Exchanges a one-time auth code for its associated token pair.
+   * The code is consumed atomically — it cannot be reused.
+   *
+   * @param code - The UUID v4 code issued by storeAuthCode().
+   * @throws UnauthorizedException if the code is invalid, expired, or already used.
+   */
+  async exchangeCode(code: string): Promise<TokenPairDto> {
+    const key = `auth:code:${code}`;
+    const raw = await this.redis.getdel(key);
+    if (!raw) throw new UnauthorizedException('Invalid or expired auth code');
+    return JSON.parse(raw) as TokenPairDto;
   }
 
   /**
