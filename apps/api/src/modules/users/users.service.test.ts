@@ -293,11 +293,10 @@ describe('UsersService', () => {
 
         const promise = service.importCvProfile('user-a-id', Buffer.from('pdf'));
 
-        // Flush microtasks then advance timers past the 7-second threshold
-        await Promise.resolve();
-        jest.advanceTimersByTime(8000);
-
-        await expect(promise).rejects.toThrow(RequestTimeoutException);
+        // Register catch handler BEFORE advancing timers to prevent unhandled rejection race
+        const assertion = expect(promise).rejects.toThrow(RequestTimeoutException);
+        await jest.advanceTimersByTimeAsync(8000);
+        await assertion;
 
         jest.useRealTimers();
       },
