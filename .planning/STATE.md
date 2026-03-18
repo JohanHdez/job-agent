@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 05-application-automation plan 05-01
-last_updated: "2026-03-18T23:00:59.311Z"
+stopped_at: Completed 05-application-automation plan 05-02
+last_updated: "2026-03-18T23:25:27.863Z"
 last_activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 19
-  completed_plans: 15
+  completed_plans: 16
   percent: 75
 ---
 
@@ -80,6 +80,7 @@ Progress: [██░░░░░░░░] 10%
 | Phase 04-pipeline-search-scoring P02 | 7 | 2 tasks | 9 files |
 | Phase 04-pipeline-search-scoring P03 | 21 | 2 tasks | 8 files |
 | Phase 05-application-automation P01 | 9 | 2 tasks | 11 files |
+| Phase 05-application-automation P02 | 21 | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,8 @@ Recent decisions affecting current work:
 - [Phase 05-application-automation]: LegacyApplicationStatus rename: job.types.ts ApplicationStatus renamed to LegacyApplicationStatus with local alias to avoid barrel collision with Phase 5 ApplicationStatus
 - [Phase 05-application-automation]: Email detection at persist time: detectRecipientEmail wired into VacanciesService.insertMany with idempotent guard
 - [Phase 05-application-automation]: apply_options access via Record cast: field not in Vacancy schema, accessed via type assertion in insertMany enrichment
+- [Phase 05-application-automation]: ClaudeEmailDraftAdapter registered via EMAIL_DRAFT_ADAPTER_TOKEN symbol — enables swapping without changing ApplicationsService
+- [Phase 05-application-automation]: VacanciesService augmentWithApplicationStatus uses single batch query for application status join — avoids N+1 on vacancy list
 
 ### Pending Todos
 
@@ -143,6 +146,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T23:00:59.299Z
-Stopped at: Completed 05-application-automation plan 05-01
+Last session: 2026-03-18T23:25:27.857Z
+Stopped at: Completed 05-application-automation plan 05-02
 Resume file: None
