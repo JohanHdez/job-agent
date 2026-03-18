@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 03-sessions-bullmq plan 03-02
-last_updated: "2026-03-17T22:39:13.634Z"
+stopped_at: Completed 03-sessions-bullmq plan 03-03 (BullMQ worker process)
+last_updated: "2026-03-18T00:05:37.305Z"
 last_activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 11
   percent: 75
 ---
 
@@ -75,6 +75,7 @@ Progress: [██░░░░░░░░] 10%
 | Phase 02-auth-+-users PPP05 | 11 | 3 tasks | 7 files |
 | Phase 03-sessions-bullmq P01 | 9 | 2 tasks | 8 files |
 | Phase 03-sessions-bullmq P02 | 15 | 2 tasks | 6 files |
+| Phase 03-sessions-bullmq P03 | 10 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,9 @@ Recent decisions affecting current work:
 - [Phase 03-sessions-bullmq]: StoredSessionEvent.data is Record<string,unknown> — schema-agnostic, no migration needed for new event fields; nextEventId is monotonic int counter on Session document
 - [Phase 03-sessions-bullmq]: SSE uses raw res.write not @Sse decorator — enables ownership validation before Content-Type header is set
 - [Phase 03-sessions-bullmq]: Session config passed as empty {} in createSession — Phase 4 wires real preset resolution
+- [Phase 03-sessions-bullmq]: child_process.fork chosen over BullMQ sandboxed processor — simpler path resolution for monorepo dist/ layout
+- [Phase 03-sessions-bullmq]: Worker has its own ioredis + mongoose connections — no shared state with NestJS process, ensures crash isolation
+- [Phase 03-sessions-bullmq]: mock-data.generator.ts is Phase 3 stub — Phase 4 replaces call site with real LinkedIn pipeline without touching worker architecture
 
 ### Pending Todos
 
@@ -124,6 +128,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T22:39:13.629Z
-Stopped at: Completed 03-sessions-bullmq plan 03-02
+Last session: 2026-03-18T00:05:37.301Z
+Stopped at: Completed 03-sessions-bullmq plan 03-03 (BullMQ worker process)
 Resume file: None
