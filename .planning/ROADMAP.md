@@ -76,7 +76,7 @@ Plans:
 - [ ] 03-03-PLAN.md — Standalone BullMQ worker process with mock data pipeline, Redis Pub/Sub publishing, MongoDB persistence, child_process.fork spawning from SessionsModule, end-to-end human verification
 
 ### Phase 4: Pipeline — Search + Scoring
-**Goal**: The BullMQ worker runs the full non-destructive pipeline: parse the user's CV, search LinkedIn Jobs + Indeed + Computrabajo with configured filters, score each vacancy 0-100, deduplicate against MongoDB history, and deliver a sorted job list to the user — all without touching LinkedIn's apply flow.
+**Goal**: The BullMQ worker runs the full non-destructive pipeline: resolve the user's active search preset, search jobs via JSearch REST API, score each vacancy 0-100 using a hybrid local + LLM engine, deduplicate against MongoDB history, enforce excluded companies filter, and deliver a sorted job list to the user via SSE events — all without touching any apply flow.
 **Depends on**: Phase 3
 **Requirements**: SRCH-03, AUTO-01, AUTO-02, AUTO-03, AUTO-04, HIST-04, APPLY-04, NF-02
 **Success Criteria** (what must be TRUE):
@@ -85,7 +85,12 @@ Plans:
   3. Vacancies with the same URL or (company + title) already seen by this user are automatically excluded from results — applying twice to the same job is not possible
   4. Companies in the user's excludedCompanies list do not appear in results; the excluded count is visible in the session view
   5. User can mark a vacancy as "Not interested" and it disappears from future search results, recorded with status=dismissed
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Define VacancyType, SearchConfigSnapshotType, JobSearchAdapter, ScoringAdapter interfaces; create Vacancy Mongoose schema with dedup indexes; register VacanciesModule
+- [ ] 04-02-PLAN.md — Wire preset resolution into POST /sessions, create VacanciesService + VacanciesController with dismiss endpoint and session vacancy list
+- [ ] 04-03-PLAN.md — Implement JSearch adapter, Claude scoring adapter, pipeline orchestrator; replace mock generator in worker with real pipeline
 
 ### Phase 5: Application Automation
 **Goal**: The agent applies to compatible jobs on the user's behalf: LinkedIn Easy Apply via the BullMQ worker with a Redis rate limiter and CAPTCHA detection, personalized email applications via Claude API with an approval modal, per-session application limits, and a full traceable application history with manual status tracking.
@@ -132,7 +137,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Foundation | 3/4 | In Progress|  |
 | 2. Auth + Users | 4/5 | In Progress|  |
 | 3. Sessions + BullMQ | 2/3 | Complete    | 2026-03-18 |
-| 4. Pipeline — Search + Scoring | 0/TBD | Not started | - |
+| 4. Pipeline — Search + Scoring | 0/3 | Not started | - |
 | 5. Application Automation | 0/TBD | Not started | - |
 | 6. React Frontend | 0/TBD | Not started | - |
 | 7. Reports + Metrics | 0/TBD | Not started | - |
