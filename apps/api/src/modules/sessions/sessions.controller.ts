@@ -50,11 +50,13 @@ export class SessionsController {
   /**
    * POST /sessions — create a new search session.
    *
-   * Reads session config from the user's active search preset (Phase 4 wires
-   * real preset resolution — for now passes empty config).
+   * Resolves the user's active search preset and embeds the SearchConfigSnapshotType
+   * in the session document. Returns 202 with { sessionId } when the session is
+   * enqueued successfully.
    *
    * @returns 202 with { sessionId } when session is enqueued successfully
    * @throws ConflictException (409) when user already has an active session
+   * @throws BadRequestException (400) when user has no active preset configured
    */
   @Post()
   @HttpCode(202)
@@ -63,9 +65,7 @@ export class SessionsController {
     @Body() _dto: CreateSessionDto
   ): Promise<{ sessionId: string }> {
     const userId = getUserId(req);
-    // Phase 4 will resolve the real preset config from user document
-    const config: Record<string, unknown> = {};
-    return this.sessionsService.createSession(userId, config);
+    return this.sessionsService.createSession(userId);
   }
 
   /**

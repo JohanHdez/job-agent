@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -6,8 +6,9 @@ import type { Queue } from 'bullmq';
 import type Redis from 'ioredis';
 import { Observable, take } from 'rxjs';
 import { createLogger } from '@job-agent/logger';
-import type { StoredSessionEvent } from '@job-agent/core';
+import type { StoredSessionEvent, SearchConfigSnapshotType } from '@job-agent/core';
 import { Session, SessionDocument } from './schemas/session.schema.js';
+import { User, UserDocument } from '../users/schemas/user.schema.js';
 import { REDIS_SUBSCRIBER } from '../../common/redis/redis-subscriber.provider.js';
 
 const logger = createLogger('SessionsService');
@@ -18,6 +19,7 @@ const logger = createLogger('SessionsService');
  * Responsibilities:
  * - Create sessions and enqueue BullMQ jobs
  * - Enforce one-active-session-per-user invariant (409 Conflict)
+ * - Resolve user's active preset into SearchConfigSnapshotType at session creation time
  * - Atomically append ring-buffer events to the session document
  * - Subscribe to Redis Pub/Sub channels to deliver live events to the SSE controller
  */
@@ -25,6 +27,7 @@ const logger = createLogger('SessionsService');
 export class SessionsService {
   constructor(
     @InjectModel(Session.name) private readonly sessionModel: Model<SessionDocument>,
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     @InjectQueue('search-session') private readonly searchSessionQueue: Queue,
     @Inject(REDIS_SUBSCRIBER) private readonly redisSubscriber: Redis,
   ) {}
@@ -32,16 +35,18 @@ export class SessionsService {
   /**
    * Creates a new search session for the given user.
    *
-   * Checks for an existing active session (queued or running) and throws
-   * a 409 ConflictException if one exists. Otherwise creates a Session
+   * Resolves the user's active search preset and embeds the SearchConfigSnapshotType
+   * in the session document. Checks for an existing active session (queued or running)
+   * and throws a 409 ConflictException if one exists. Otherwise creates a Session
    * document with status='queued' and enqueues a BullMQ job.
    *
    * @param userId - MongoDB ObjectId string of the session owner
-   * @param config - Snapshot of the search/matching config for this session
    * @returns Object containing the new sessionId
-   * @throws ConflictException when user already has an active session
+   * @throws ConflictException (409) when user already has an active session
+   * @throws BadRequestException (400) when user has no active preset
+   * @throws BadRequestException (400) when active preset id does not match any preset
    */
-  async createSession(userId: string, config: Record<string, unknown>): Promise<{ sessionId: string }> {
+  async createSession(userId: string): Promise<{ sessionId: string }> {
     const activeSession = await this.sessionModel
       .findOne({ userId, status: { $in: ['queued', 'running'] } })
       .exec();
@@ -51,6 +56,41 @@ export class SessionsService {
       logger.warn('Conflict: user already has an active session', { userId, sessionId: existingId });
       throw new ConflictException({ code: 'SESSION_ALREADY_ACTIVE', sessionId: existingId });
     }
+
+    // Resolve active preset from user document
+    const user = await this.userModel
+      .findById(userId, { searchPresets: 1, activePresetId: 1 })
+      .lean()
+      .exec();
+
+    if (!user?.activePresetId) {
+      throw new BadRequestException({
+        code: 'NO_ACTIVE_PRESET',
+        message: 'User must have an active search preset before starting a session',
+      });
+    }
+
+    const preset = user.searchPresets.find((p) => p.id === user.activePresetId);
+    if (!preset) {
+      throw new BadRequestException({
+        code: 'PRESET_NOT_FOUND',
+        message: `Active preset ${user.activePresetId} not found in user presets`,
+      });
+    }
+
+    // Build SearchConfigSnapshot from preset — snapshot is immutable from this point
+    const config: SearchConfigSnapshotType = {
+      keywords: preset.keywords,
+      location: preset.location,
+      modality: preset.modality,
+      platforms: preset.platforms,
+      seniority: preset.seniority,
+      languages: preset.languages,
+      datePosted: preset.datePosted,
+      minScoreToApply: preset.minScoreToApply,
+      maxApplicationsPerSession: preset.maxApplicationsPerSession,
+      excludedCompanies: preset.excludedCompanies,
+    };
 
     const session = await this.sessionModel.create({
       userId,

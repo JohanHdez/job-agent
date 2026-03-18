@@ -4,6 +4,7 @@ import { join } from 'path';
 import { BullModule } from '@nestjs/bullmq';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Session, SessionSchema } from './schemas/session.schema.js';
+import { User, UserSchema } from '../users/schemas/user.schema.js';
 import { SessionsController } from './sessions.controller.js';
 import { SessionsService } from './sessions.service.js';
 
@@ -22,7 +23,10 @@ import { SessionsService } from './sessions.service.js';
 @Module({
   imports: [
     BullModule.registerQueue({ name: 'search-session' }),
-    MongooseModule.forFeature([{ name: Session.name, schema: SessionSchema }]),
+    MongooseModule.forFeature([
+      { name: Session.name, schema: SessionSchema },
+      { name: User.name, schema: UserSchema },
+    ]),
   ],
   controllers: [SessionsController],
   providers: [SessionsService],
