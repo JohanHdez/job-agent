@@ -85,6 +85,20 @@ export class Vacancy {
    */
   @Prop()
   filterReason?: string;
+
+  /**
+   * Recipient email address extracted at vacancy persist time (Phase 5).
+   * Undefined when email detection has not run or no email was found.
+   */
+  @Prop()
+  recipientEmail?: string;
+
+  /**
+   * How the recipientEmail was detected (Phase 5).
+   * Always set alongside recipientEmail by the email detection utility.
+   */
+  @Prop({ enum: ['apply_options', 'jd_regex', 'manual_required'] })
+  emailDetectionMethod?: string;
 }
 
 export const VacancySchema = SchemaFactory.createForClass(Vacancy);

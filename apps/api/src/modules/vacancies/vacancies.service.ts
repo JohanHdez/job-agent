@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { createLogger } from '@job-agent/logger';
 import type { VacancyStatus } from '@job-agent/core';
 import { Vacancy, VacancyDocument } from './schemas/vacancy.schema.js';
+import { detectRecipientEmail } from './email-detection.util.js';
 
 const logger = createLogger('VacanciesService');
 
@@ -101,14 +102,34 @@ export class VacanciesService {
 
   /**
    * Bulk insert vacancies, ignoring duplicates (MongoDB E11000 on unique index).
+   * Runs email detection on each vacancy before persistence per Phase 5 CONTEXT.md decision.
    * Uses ordered: false so MongoDB continues past duplicate key errors.
    *
    * @param vacancies - Array of partial Vacancy objects to insert
    * @returns Array of successfully inserted VacancyDocument instances
    */
   async insertMany(vacancies: Partial<Vacancy>[]): Promise<VacancyDocument[]> {
+    // Run email detection on each vacancy before persistence (Phase 5 CONTEXT.md requirement).
+    // Only runs when recipientEmail is not already set (idempotent for re-insertion attempts).
+    const enriched = vacancies.map(v => {
+      if (v.recipientEmail === undefined && v.description) {
+        const result = detectRecipientEmail(
+          (v as Record<string, unknown>).apply_options as
+            | Array<{ publisher?: string; apply_link?: string; is_direct?: boolean }>
+            | undefined,
+          v.description
+        );
+        return {
+          ...v,
+          recipientEmail: result.email ?? undefined,
+          emailDetectionMethod: result.method,
+        };
+      }
+      return v;
+    });
+
     try {
-      return await this.vacancyModel.insertMany(vacancies, { ordered: false }) as VacancyDocument[];
+      return await this.vacancyModel.insertMany(enriched, { ordered: false }) as VacancyDocument[];
     } catch (err: unknown) {
       // With ordered: false, MongoDB continues past duplicate key errors.
       // The successfully inserted docs are in err.insertedDocs (Mongoose 7+).
