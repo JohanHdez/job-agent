@@ -14,6 +14,7 @@
     "test:cov": "jest --coverage --passWithNoTests"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.79.0",
     "@faker-js/faker": "^10.3.0",
     "@job-agent/logger": "*",
     "@nestjs/bullmq": "^11.0.4",
