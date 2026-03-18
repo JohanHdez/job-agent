@@ -42,15 +42,15 @@
 ### Applications (APPLY)
 
 - [ ] **APPLY-01**: For LinkedIn vacancies with Easy Apply button, agent executes full multi-step form flow with submit; rate limiting 8-12s between applications; ApplicationRecord created with status=applied; CAPTCHA detected → pause and notify user (RF-16)
-- [ ] **APPLY-02**: For vacancies requiring email application, system generates a personalized email using Claude API with subject "[Full Name] - [Role] @ [Company]"; sends via SMTP; registers with status=email_sent, emailSubject, emailBody, recipientEmail, timestamp in < 5s (RF-17)
-- [ ] **APPLY-03**: Before sending email, user can preview the AI-generated draft, edit it, and approve or discard the send (active only in review mode) (RF-18)
+- [x] **APPLY-02**: For vacancies requiring email application, system generates a personalized email using Claude API with subject "[Full Name] - [Role] @ [Company]"; sends via SMTP; registers with status=email_sent, emailSubject, emailBody, recipientEmail, timestamp in < 5s (RF-17)
+- [x] **APPLY-03**: Before sending email, user can preview the AI-generated draft, edit it, and approve or discard the send (active only in review mode) (RF-18)
 - [x] **APPLY-04**: Agent enforces maxApplicationsPerSession limit; counter visible during execution; agent stops and notifies user when limit reached (RF-19)
 
 ### History & Tracking (HIST)
 
-- [ ] **HIST-01**: User can view a paginated (20/page) global history of all applications across all sessions, filterable by date, company, platform, and status; exportable to CSV (RF-20)
-- [ ] **HIST-02**: Clicking an application in history shows: full JD, score, sent email (if applicable), link to vacancy, current status, and state change timeline (RF-21)
-- [ ] **HIST-03**: User can manually update the status of an application (e.g., "interview scheduled", "offer received", "rejected"); change persists in MongoDB with timestamp (RF-22)
+- [x] **HIST-01**: User can view a paginated (20/page) global history of all applications across all sessions, filterable by date, company, platform, and status; exportable to CSV (RF-20)
+- [x] **HIST-02**: Clicking an application in history shows: full JD, score, sent email (if applicable), link to vacancy, current status, and state change timeline (RF-21)
+- [x] **HIST-03**: User can manually update the status of an application (e.g., "interview scheduled", "offer received", "rejected"); change persists in MongoDB with timestamp (RF-22)
 - [x] **HIST-04**: User can mark a vacancy as "Not interested" to exclude it from future searches without applying; added to history with status=dismissed (RF-23)
 
 ### Reports (REPT)
@@ -69,7 +69,7 @@
 - [ ] **NF-01**: Dashboard loads in < 2 seconds; Lighthouse Performance >= 85; LCP < 2.5s (RNF-01)
 - [x] **NF-02**: Compatibility scoring completes in < 500ms per vacancy; p95 < 500ms at 50 concurrent vacancies (RNF-02)
 - [x] **NF-03**: LinkedIn profile import completes in < 8 seconds end-to-end (RNF-03)
-- [ ] **NF-04**: Personalized email generation via Claude API in < 5 seconds; timeout at 8s; max 2 retries with backoff (RNF-04)
+- [x] **NF-04**: Personalized email generation via Claude API in < 5 seconds; timeout at 8s; max 2 retries with backoff (RNF-04)
 - [x] **NF-05**: System supports 100 concurrent users running searches without degradation; p99 < 3s response time (RNF-07)
 - [x] **NF-06**: OAuth tokens and credentials stored encrypted (AES-256-GCM) in MongoDB; never exposed in logs or API responses (RNF-08)
 - [x] **NF-07**: All API routes require valid JWT signed with RS256, 24h expiry; unauthenticated requests return 401 (RNF-09) — HS256 in Phase 1; RS256 deferred to Phase 2
@@ -140,12 +140,12 @@
 | AUTO-03 | Phase 4 | Complete |
 | AUTO-04 | Phase 4 | Complete |
 | APPLY-01 | Phase 5 | Pending |
-| APPLY-02 | Phase 5 | Pending |
-| APPLY-03 | Phase 5 | Pending |
+| APPLY-02 | Phase 5 | Complete |
+| APPLY-03 | Phase 5 | Complete |
 | APPLY-04 | Phase 4 | Complete |
-| HIST-01 | Phase 5 | Pending |
-| HIST-02 | Phase 5 | Pending |
-| HIST-03 | Phase 5 | Pending |
+| HIST-01 | Phase 5 | Complete |
+| HIST-02 | Phase 5 | Complete |
+| HIST-03 | Phase 5 | Complete |
 | HIST-04 | Phase 4 | Complete |
 | REPT-01 | Phase 7 | Pending |
 | REPT-02 | Phase 7 | Pending |
@@ -155,7 +155,7 @@
 | NF-01 | Phase 6 | Pending |
 | NF-02 | Phase 4 | Complete |
 | NF-03 | Phase 2 | Complete |
-| NF-04 | Phase 5 | Pending |
+| NF-04 | Phase 5 | Complete |
 | NF-05 | Phase 3 | Complete |
 | NF-06 | Phase 1 | Complete |
 | NF-07 | Phase 1 | Complete |

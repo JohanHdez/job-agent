@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Phase 5 context gathered
-last_updated: "2026-03-18T13:43:59.456Z"
+stopped_at: Completed 05-application-automation plan 05-01
+last_updated: "2026-03-18T23:00:59.311Z"
 last_activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 15
-  completed_plans: 14
+  total_plans: 19
+  completed_plans: 15
   percent: 75
 ---
 
@@ -79,6 +79,7 @@ Progress: [██░░░░░░░░] 10%
 | Phase 04-pipeline-search-scoring PP01 | 5 | 2 tasks | 7 files |
 | Phase 04-pipeline-search-scoring P02 | 7 | 2 tasks | 9 files |
 | Phase 04-pipeline-search-scoring P03 | 21 | 2 tasks | 8 files |
+| Phase 05-application-automation P01 | 9 | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,9 @@ Recent decisions affecting current work:
 - [Phase 04-pipeline-search-scoring]: AnyModel duck-type interface avoids Mongoose generic incompatibilities with exactOptionalPropertyTypes
 - [Phase 04-pipeline-search-scoring]: Pipeline emits missing_fields for incomplete vacancies, excluded_company for blocked companies - separate semantic reasons per plan
 - [Phase 04-pipeline-search-scoring]: JSearchAdapter maps job_publisher to PlatformId via case-insensitive PUBLISHER_TO_PLATFORM map, not hardcoded to linkedin
+- [Phase 05-application-automation]: LegacyApplicationStatus rename: job.types.ts ApplicationStatus renamed to LegacyApplicationStatus with local alias to avoid barrel collision with Phase 5 ApplicationStatus
+- [Phase 05-application-automation]: Email detection at persist time: detectRecipientEmail wired into VacanciesService.insertMany with idempotent guard
+- [Phase 05-application-automation]: apply_options access via Record cast: field not in Vacancy schema, accessed via type assertion in insertMany enrichment
 
 ### Pending Todos
 
@@ -139,6 +143,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T13:43:59.449Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-application-automation/05-CONTEXT.md
+Last session: 2026-03-18T23:00:59.299Z
+Stopped at: Completed 05-application-automation plan 05-01
+Resume file: None
