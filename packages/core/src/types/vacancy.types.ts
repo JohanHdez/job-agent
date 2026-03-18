@@ -5,6 +5,14 @@
 
 import type { PlatformId } from './config.types.js';
 
+/**
+ * How the recipient email was detected for a vacancy.
+ * - apply_options: extracted from a mailto: link in the JSearch apply_options array
+ * - jd_regex:      extracted via email regex scan of the job description text
+ * - manual_required: no email found automatically; user must provide it manually
+ */
+export type EmailDetectionMethod = 'apply_options' | 'jd_regex' | 'manual_required';
+
 /** Status of a vacancy in the user's application history */
 export type VacancyStatus = 'new' | 'applied' | 'dismissed' | 'failed';
 
@@ -75,4 +83,14 @@ export interface VacancyType {
    * Only set when the vacancy was not processed to completion.
    */
   filterReason?: 'missing_fields' | 'excluded_company' | 'duplicate' | 'score_below_threshold';
+  /**
+   * Recipient email address extracted at vacancy persist time (Phase 5).
+   * Undefined when email detection has not run or no email was found via any method.
+   */
+  recipientEmail?: string;
+  /**
+   * How the recipientEmail was detected (Phase 5).
+   * Always set alongside recipientEmail by the email detection utility.
+   */
+  emailDetectionMethod?: EmailDetectionMethod;
 }

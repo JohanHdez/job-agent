@@ -9,3 +9,5 @@ export * from './session.types.js';
 export * from './vacancy.types.js';
 export * from './search-adapter.types.js';
 export * from './scoring-adapter.types.js';
+export * from './application.types.js';
+export * from './email-draft-adapter.types.js';

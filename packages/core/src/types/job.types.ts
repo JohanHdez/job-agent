@@ -19,12 +19,19 @@ export interface JobListing {
   platform: PlatformId;
 }
 
-export type ApplicationStatus =
+/**
+ * @deprecated Phase 1-4 CLI application status. For Phase 5+ SaaS status, use ApplicationStatus from application.types.ts.
+ * Renamed to LegacyApplicationStatus to avoid barrel export collision.
+ */
+export type LegacyApplicationStatus =
   | 'applied'
   | 'easy_apply_not_available'
   | 'already_applied'
   | 'failed'
   | 'skipped_low_score';
+
+/** Local alias for backward compat within this file */
+type ApplicationStatus = LegacyApplicationStatus;
 
 /** How the application was submitted (only present when status === 'applied'). */
 export type ApplicationMethod =
