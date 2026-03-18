@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 05-application-automation plan 05-03
-last_updated: "2026-03-18T23:34:25.309Z"
+stopped_at: "Completed 05-application-automation plan 05-04 (checkpoint:human-verify pending)"
+last_updated: "2026-03-18T23:45:43.053Z"
 last_activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 75
 ---
 
@@ -82,6 +82,7 @@ Progress: [██░░░░░░░░] 10%
 | Phase 05-application-automation P01 | 9 | 2 tasks | 11 files |
 | Phase 05-application-automation P02 | 21 | 2 tasks | 16 files |
 | Phase 05-application-automation P03 | 6 | 1 tasks | 5 files |
+| Phase 05-application-automation P04 | 8 | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,9 @@ Recent decisions affecting current work:
 - [Phase 05-application-automation]: smtpConfig sub-schema uses explicit typed fields (host: String, port: Number, etc.) not type: Object — stricter DB-level validation
 - [Phase 05-application-automation]: getSmtpConfigRaw is separate from getSmtpConfig — public API always masks password with '********', EmailSenderService uses internal raw method to get encrypted value
 - [Phase 05-application-automation]: Google OAuth fromEmail pre-fill in saveSmtpConfig: empty fromEmail + googleId present = auto-fill from user.email, avoiding redundant entry for Gmail users
+- [Phase 05-application-automation]: DashboardPage fetches vacancies with includeApplication=true to join application status in single batch request
+- [Phase 05-application-automation]: EmailDraftModal creates application on mount (POST /applications) and auto-calls review transition — modal opening is the trigger, no separate button needed
+- [Phase 05-application-automation]: ApplicationHistoryPage wrapper bg/minHeight removed — page renders inside AppLayout which provides the shell
 
 ### Pending Todos
 
@@ -150,6 +154,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T23:34:25.303Z
-Stopped at: Completed 05-application-automation plan 05-03
+Last session: 2026-03-18T23:45:34.628Z
+Stopped at: Completed 05-application-automation plan 05-04 (checkpoint:human-verify pending)
 Resume file: None

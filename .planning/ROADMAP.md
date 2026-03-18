@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: Auth + Users** - LinkedIn OAuth, Google OAuth, JWT refresh, per-user profile (CV upload + LinkedIn import), search config presets
 - [x] **Phase 3: Sessions + BullMQ** - POST /sessions endpoint, SSE with MongoDB replay, BullMQ worker process isolated from NestJS, stub pipeline validated end-to-end (completed 2026-03-18)
 - [x] **Phase 4: Pipeline — Search + Scoring** - CV parser in worker, multi-platform search, compatibility scoring 0-100, MongoDB deduplication, excluded companies filter, session limit enforcement (completed 2026-03-18)
-- [ ] **Phase 5: Application Automation** - LinkedIn Easy Apply via worker, email apply via Claude API + SMTP, Redis rate limiter, CAPTCHA detection, application history with manual status
+- [x] **Phase 5: Application Automation** - LinkedIn Easy Apply via worker, email apply via Claude API + SMTP, Redis rate limiter, CAPTCHA detection, application history with manual status (completed 2026-03-18)
 - [ ] **Phase 6: React Frontend** - OAuth login page, dashboard with live SSE progress, search config form, job results with scores, application history with CSV export, profile editor
 - [ ] **Phase 7: Reports + Metrics** - Session reports (HTML/Markdown/PDF), emails log, aggregated metrics dashboard, CSV + PDF export
 
@@ -144,6 +144,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Auth + Users | 4/5 | In Progress|  |
 | 3. Sessions + BullMQ | 2/3 | Complete    | 2026-03-18 |
 | 4. Pipeline — Search + Scoring | 3/3 | Complete   | 2026-03-18 |
-| 5. Application Automation | 3/4 | In Progress|  |
+| 5. Application Automation | 4/4 | Complete   | 2026-03-18 |
 | 6. React Frontend | 0/TBD | Not started | - |
 | 7. Reports + Metrics | 0/TBD | Not started | - |
