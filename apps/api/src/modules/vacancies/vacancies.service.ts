@@ -2,8 +2,9 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { createLogger } from '@job-agent/logger';
-import type { VacancyStatus } from '@job-agent/core';
+import type { VacancyStatus, ApplicationStatus } from '@job-agent/core';
 import { Vacancy, VacancyDocument } from './schemas/vacancy.schema.js';
+import { Application, ApplicationDocument } from '../applications/schemas/application.schema.js';
 import { detectRecipientEmail } from './email-detection.util.js';
 
 const logger = createLogger('VacanciesService');
@@ -14,25 +15,82 @@ const logger = createLogger('VacanciesService');
  * All queries enforce userId ownership per NF-08 row-level security.
  * Provides findBySession, updateStatus (dismiss), checkDuplicate, and insertMany.
  */
+/** Options for findBySession — controls whether application status is joined */
+export interface FindBySessionOptions {
+  /** When true, augments each vacancy with applicationStatus from the applications collection */
+  includeApplication?: boolean;
+}
+
+/** Vacancy document augmented with optional application status for Dashboard display */
+export type VacancyWithApplicationStatus = ReturnType<VacancyDocument['toObject']> & {
+  applicationStatus: ApplicationStatus | null;
+};
+
 @Injectable()
 export class VacanciesService {
   constructor(
     @InjectModel(Vacancy.name) private readonly vacancyModel: Model<VacancyDocument>,
+    @InjectModel(Application.name) private readonly applicationModel: Model<ApplicationDocument>,
   ) {}
 
   /**
    * Find all vacancies for a session, sorted by score descending.
    * Enforces userId ownership (NF-08).
    *
+   * When options.includeApplication is true, each vacancy is augmented with
+   * applicationStatus from the applications collection (for Dashboard vacancy cards).
+   *
    * @param sessionId - MongoDB ObjectId string of the session
    * @param userId - MongoDB ObjectId string of the requesting user
-   * @returns Array of VacancyDocument sorted by compatibilityScore descending
+   * @param options - Optional flags for data enrichment
+   * @returns Array of vacancy documents (with optional applicationStatus field)
    */
-  async findBySession(sessionId: string, userId: string): Promise<VacancyDocument[]> {
-    return this.vacancyModel
+  async findBySession(
+    sessionId: string,
+    userId: string,
+    options?: FindBySessionOptions
+  ): Promise<VacancyDocument[] | VacancyWithApplicationStatus[]> {
+    const vacancies = await this.vacancyModel
       .find({ sessionId, userId })
       .sort({ compatibilityScore: -1 })
       .exec();
+
+    if (!options?.includeApplication) return vacancies;
+
+    return this.augmentWithApplicationStatus(vacancies, userId);
+  }
+
+  /**
+   * Augments vacancies with applicationStatus from the applications collection.
+   * Runs a single batch query to avoid N+1 queries.
+   *
+   * @param vacancies - Vacancy documents to augment
+   * @param userId - Owner userId for the application lookup
+   * @returns Vacancies with applicationStatus field populated (null if no application)
+   */
+  private async augmentWithApplicationStatus(
+    vacancies: VacancyDocument[],
+    userId: string
+  ): Promise<VacancyWithApplicationStatus[]> {
+    const vacancyIds = vacancies.map((v) => v._id.toString());
+
+    const applications = await this.applicationModel
+      .find({ userId, vacancyId: { $in: vacancyIds } })
+      .select('vacancyId status')
+      .lean()
+      .exec();
+
+    const appStatusMap = new Map(
+      applications.map((a) => [
+        a.vacancyId,
+        a.status as ApplicationStatus,
+      ])
+    );
+
+    return vacancies.map((v) => ({
+      ...v.toObject(),
+      applicationStatus: appStatusMap.get(v._id.toString()) ?? null,
+    }));
   }
 
   /**

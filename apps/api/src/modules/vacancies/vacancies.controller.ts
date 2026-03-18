@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, Req, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { VacanciesService } from './vacancies.service.js';
 import { UpdateVacancyStatusDto } from './dto/update-vacancy-status.dto.js';
@@ -40,15 +40,23 @@ export class VacanciesController {
    * Returns vacancies sorted by compatibilityScore descending.
    * Enforces userId ownership (NF-08) — only the owning user can list their vacancies.
    *
+   * When ?includeApplication=true, each vacancy is augmented with applicationStatus
+   * from the applications collection (used by DashboardPage vacancy cards).
+   *
    * @returns Array of vacancy documents sorted by score descending
    */
   @Get('session/:sessionId')
   async findBySession(
     @Param('sessionId') sessionId: string,
-    @Req() req: AuthenticatedRequest
+    @Req() req: AuthenticatedRequest,
+    @Query('includeApplication') includeApplication?: string,
   ) {
     const userId = getUserId(req);
-    return this.vacanciesService.findBySession(sessionId, userId);
+    return this.vacanciesService.findBySession(
+      sessionId,
+      userId,
+      { includeApplication: includeApplication === 'true' }
+    );
   }
 
   /**

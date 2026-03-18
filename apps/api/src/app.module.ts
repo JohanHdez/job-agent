@@ -10,6 +10,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { RedisModule } from './common/redis/redis.module.js';
 import { SessionsModule } from './modules/sessions/sessions.module.js';
 import { VacanciesModule } from './modules/vacancies/vacancies.module.js';
+import { ApplicationsModule } from './modules/applications/applications.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
@@ -47,6 +48,7 @@ import { CorrelationMiddleware } from './common/middleware/correlation.middlewar
     AuthModule,
     SessionsModule,
     VacanciesModule,
+    ApplicationsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

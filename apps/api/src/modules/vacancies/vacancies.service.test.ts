@@ -12,6 +12,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { NotFoundException } from '@nestjs/common';
 import { VacanciesService } from './vacancies.service.js';
 import { Vacancy } from './schemas/vacancy.schema.js';
+import { Application } from '../applications/schemas/application.schema.js';
 
 // ── Mock helpers ──────────────────────────────────────────────────────────────
 
@@ -56,6 +57,16 @@ describe('VacanciesService', () => {
         {
           provide: getModelToken(Vacancy.name),
           useValue: modelMock,
+        },
+        {
+          provide: getModelToken(Application.name),
+          useValue: {
+            find: jest.fn().mockReturnValue({
+              select: jest.fn().mockReturnThis(),
+              lean: jest.fn().mockReturnThis(),
+              exec: jest.fn().mockResolvedValue([]),
+            }),
+          },
         },
       ],
     }).compile();

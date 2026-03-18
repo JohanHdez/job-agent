@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import type { ProfessionalProfile, SearchPresetType } from '@job-agent/core';
+import type { ProfessionalProfile, SearchPresetType, SmtpConfigType } from '@job-agent/core';
 
 /** Auth providers a user can link to their account */
 export type AuthProvider = 'linkedin' | 'google';
@@ -99,6 +99,16 @@ export class User {
    */
   @Prop({ type: String })
   contactEmail?: string;
+
+  // ── Phase 5: SMTP Configuration ─────────────────────────────────────────────
+
+  /**
+   * User's SMTP configuration for sending application emails.
+   * The password field is stored AES-256-GCM encrypted at rest.
+   * Shape mirrors SmtpConfigType from @job-agent/core.
+   */
+  @Prop({ type: Object, default: null })
+  smtpConfig!: SmtpConfigType | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
