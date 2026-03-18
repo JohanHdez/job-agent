@@ -5,13 +5,14 @@ import { randomUUID } from 'crypto';
 import { writeFile, unlink } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import type { ProfessionalProfile, SearchPresetType } from '@job-agent/core';
+import type { ProfessionalProfile, SearchPresetType, SmtpConfigType } from '@job-agent/core';
 import { User, UserDocument } from './schemas/user.schema.js';
 import { encryptToken } from '../../common/crypto/token-cipher.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { CreatePresetDto } from './dto/create-preset.dto.js';
 import { UpdatePresetDto } from './dto/update-preset.dto.js';
+import { UpdateSmtpConfigDto } from './dto/update-smtp-config.dto.js';
 
 export interface UpsertLinkedInUserDto {
   linkedinId: string;
@@ -323,5 +324,81 @@ export class UsersService {
     ).exec();
     if (!user) throw new NotFoundException('User not found');
     return user;
+  }
+
+  // ── Phase 5: SMTP Configuration (APPLY-02) ────────────────────────────────
+
+  /**
+   * Save SMTP configuration for email applications (APPLY-02).
+   * Encrypts the password using AES-256-GCM before storage.
+   * If user authenticated via Google and fromEmail is not provided,
+   * pre-fills fromEmail with their Google account email.
+   */
+  async saveSmtpConfig(userId: string, dto: UpdateSmtpConfigDto): Promise<{ saved: true }> {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) throw new NotFoundException('User not found');
+
+    // Google OAuth pre-fill: if user has googleId and no fromEmail provided, use their account email
+    const fromEmail = dto.fromEmail || (user.googleId ? user.email : '');
+    if (!fromEmail) throw new BadRequestException('fromEmail is required');
+
+    const encrypted = encryptToken(dto.password);
+
+    await this.userModel.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          smtpConfig: {
+            host: dto.host,
+            port: dto.port,
+            secure: dto.secure ?? false,
+            user: dto.user,
+            password: encrypted,
+            fromName: dto.fromName,
+            fromEmail,
+          },
+        },
+      },
+    ).exec();
+
+    return { saved: true };
+  }
+
+  /**
+   * Get SMTP configuration with masked password.
+   * Never returns the actual encrypted password — only '********'.
+   * Returns null if the user has no SMTP config configured.
+   */
+  async getSmtpConfig(userId: string): Promise<{
+    host: string;
+    port: number;
+    secure: boolean;
+    user: string;
+    password: string;
+    fromName: string;
+    fromEmail: string;
+  } | null> {
+    const user = await this.userModel.findById(userId).select('smtpConfig').exec();
+    if (!user?.smtpConfig) return null;
+
+    return {
+      host: user.smtpConfig.host,
+      port: user.smtpConfig.port,
+      secure: user.smtpConfig.secure,
+      user: user.smtpConfig.user,
+      password: '********',  // NEVER expose the encrypted value
+      fromName: user.smtpConfig.fromName,
+      fromEmail: user.smtpConfig.fromEmail,
+    };
+  }
+
+  /**
+   * Get raw SMTP config (with encrypted password) for internal use by EmailSenderService.
+   * NOT exposed via any API endpoint — internal use only.
+   */
+  async getSmtpConfigRaw(userId: string): Promise<SmtpConfigType | null> {
+    const user = await this.userModel.findById(userId).select('smtpConfig').exec();
+    if (!user?.smtpConfig) return null;
+    return user.smtpConfig as SmtpConfigType;
   }
 }

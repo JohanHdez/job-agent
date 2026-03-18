@@ -103,11 +103,22 @@ export class User {
   // ── Phase 5: SMTP Configuration ─────────────────────────────────────────────
 
   /**
-   * User's SMTP configuration for sending application emails.
-   * The password field is stored AES-256-GCM encrypted at rest.
-   * Shape mirrors SmtpConfigType from @job-agent/core.
+   * SMTP configuration for sending email applications.
+   * Password is stored AES-256-GCM encrypted (same pattern as OAuth tokens).
+   * Never exposed in API responses — only used server-side for sending.
    */
-  @Prop({ type: Object, default: null })
+  @Prop({
+    type: {
+      host: { type: String, required: true },
+      port: { type: Number, required: true },
+      secure: { type: Boolean, default: false },
+      user: { type: String, required: true },
+      password: { type: String, required: true },  // AES-256-GCM encrypted
+      fromName: { type: String, required: true },
+      fromEmail: { type: String, required: true },
+    },
+    default: null,
+  })
   smtpConfig!: SmtpConfigType | null;
 }
 

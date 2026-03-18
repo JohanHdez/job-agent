@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Delete,
   Body,
@@ -20,6 +21,7 @@ import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { CreatePresetDto } from './dto/create-preset.dto.js';
 import { UpdatePresetDto } from './dto/update-preset.dto.js';
+import { UpdateSmtpConfigDto } from './dto/update-smtp-config.dto.js';
 import type { UserDocument } from './schemas/user.schema.js';
 import type { Request } from 'express';
 
@@ -113,6 +115,21 @@ export class UsersController {
       isComplete: missingFields.length === 0,
       missingFields,
     };
+  }
+
+  /** PUT /users/smtp-config — save SMTP configuration (APPLY-02) */
+  @Put('smtp-config')
+  async saveSmtpConfig(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: UpdateSmtpConfigDto
+  ) {
+    return this.usersService.saveSmtpConfig(getUserId(req), dto);
+  }
+
+  /** GET /users/smtp-config — get SMTP config with masked password */
+  @Get('smtp-config')
+  async getSmtpConfig(@Req() req: AuthenticatedRequest) {
+    return this.usersService.getSmtpConfig(getUserId(req));
   }
 
   /** GET /users/presets — list all search presets (SRCH-01) */
