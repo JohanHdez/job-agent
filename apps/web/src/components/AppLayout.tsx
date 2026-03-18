@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/auth.store';
 import { api } from '../lib/api';
 
@@ -49,6 +50,12 @@ const Icon = {
       <line x1="6" y1="20" x2="6" y2="14" />
     </svg>
   ),
+  Applications: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </svg>
+  ),
   Logout: () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -60,10 +67,11 @@ const Icon = {
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { to: '/config',   label: 'Search Config', Icon: Icon.Config  },
-  { to: '/profile',  label: 'Profile',       Icon: Icon.Profile },
-  { to: '/history',  label: 'History',       Icon: Icon.History },
-  { to: '/report',   label: 'Last Report',   Icon: Icon.Report  },
+  { to: '/config',       label: 'Search Config', Icon: Icon.Config       },
+  { to: '/profile',      label: 'Profile',       Icon: Icon.Profile      },
+  { to: '/applications', label: 'Applications',  Icon: Icon.Applications },
+  { to: '/history',      label: 'History',       Icon: Icon.History      },
+  { to: '/report',       label: 'Last Report',   Icon: Icon.Report       },
 ] as const;
 
 // ─── NavItem ──────────────────────────────────────────────────────────────────
@@ -71,9 +79,10 @@ interface NavItemProps {
   to: string;
   label: string;
   IconComponent: () => React.ReactElement;
+  badge?: number;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ to, label, IconComponent }) => (
+const NavItem: React.FC<NavItemProps> = ({ to, label, IconComponent, badge }) => (
   <NavLink
     to={to}
     style={({ isActive }) => ({
@@ -107,6 +116,22 @@ const NavItem: React.FC<NavItemProps> = ({ to, label, IconComponent }) => (
   >
     <IconComponent />
     {label}
+    {badge != null && badge > 0 && (
+      <span
+        style={{
+          marginLeft: 'auto',
+          fontSize: 11,
+          fontWeight: 600,
+          color: '#818cf8',
+          background: 'rgba(99,102,241,0.12)',
+          padding: '1px 7px',
+          borderRadius: 999,
+          lineHeight: 1.5,
+        }}
+      >
+        {badge}
+      </span>
+    )}
   </NavLink>
 );
 
@@ -114,6 +139,18 @@ const NavItem: React.FC<NavItemProps> = ({ to, label, IconComponent }) => (
 const AppLayout: React.FC = () => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+
+  const { data: pendingData } = useQuery<{ count: number }>({
+    queryKey: ['applications-pending-count'],
+    queryFn: async () => {
+      const res = await api.get<{ count: number }>('/applications/pending-count');
+      return res.data;
+    },
+    refetchInterval: 60_000, // poll every minute
+    retry: false,
+  });
+
+  const pendingCount = pendingData?.count ?? 0;
 
   const handleLogout = useCallback(async () => {
     try {
@@ -169,7 +206,13 @@ const AppLayout: React.FC = () => {
 
         {/* Nav items */}
         {NAV_ITEMS.map(({ to, label, Icon: IconComponent }) => (
-          <NavItem key={to} to={to} label={label} IconComponent={IconComponent} />
+          <NavItem
+            key={to}
+            to={to}
+            label={label}
+            IconComponent={IconComponent}
+            badge={to === '/applications' ? pendingCount : undefined}
+          />
         ))}
 
         {/* Spacer */}
