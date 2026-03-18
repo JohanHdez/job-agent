@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Foundation** - NestJS app scaffold, MongoDB + Redis connectivity, shared types audit, structured logging in DI, global auth guard
 - [ ] **Phase 2: Auth + Users** - LinkedIn OAuth, Google OAuth, JWT refresh, per-user profile (CV upload + LinkedIn import), search config presets
 - [x] **Phase 3: Sessions + BullMQ** - POST /sessions endpoint, SSE with MongoDB replay, BullMQ worker process isolated from NestJS, stub pipeline validated end-to-end (completed 2026-03-18)
-- [ ] **Phase 4: Pipeline — Search + Scoring** - CV parser in worker, multi-platform search, compatibility scoring 0-100, MongoDB deduplication, excluded companies filter, session limit enforcement
+- [x] **Phase 4: Pipeline — Search + Scoring** - CV parser in worker, multi-platform search, compatibility scoring 0-100, MongoDB deduplication, excluded companies filter, session limit enforcement (completed 2026-03-18)
 - [ ] **Phase 5: Application Automation** - LinkedIn Easy Apply via worker, email apply via Claude API + SMTP, Redis rate limiter, CAPTCHA detection, application history with manual status
 - [ ] **Phase 6: React Frontend** - OAuth login page, dashboard with live SSE progress, search config form, job results with scores, application history with CSV export, profile editor
 - [ ] **Phase 7: Reports + Metrics** - Session reports (HTML/Markdown/PDF), emails log, aggregated metrics dashboard, CSV + PDF export
@@ -137,7 +137,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Foundation | 3/4 | In Progress|  |
 | 2. Auth + Users | 4/5 | In Progress|  |
 | 3. Sessions + BullMQ | 2/3 | Complete    | 2026-03-18 |
-| 4. Pipeline — Search + Scoring | 2/3 | In Progress|  |
+| 4. Pipeline — Search + Scoring | 3/3 | Complete   | 2026-03-18 |
 | 5. Application Automation | 0/TBD | Not started | - |
 | 6. React Frontend | 0/TBD | Not started | - |
 | 7. Reports + Metrics | 0/TBD | Not started | - |

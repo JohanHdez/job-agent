@@ -34,8 +34,8 @@
 
 ### Automation & Matching (AUTO)
 
-- [ ] **AUTO-01**: Agent executes automated searches on LinkedIn Jobs, Indeed, and Computrabajo with configured filters using Playwright; returns minimum 20 results per active platform (when available); results deduplicated by URL (RF-12)
-- [ ] **AUTO-02**: Every vacancy receives a compatibility score 0-100 comparing JD vs ProfessionalProfileType (skills match, seniority, language, modality, salary); vacancies sorted descending by score in the UI (RF-13)
+- [x] **AUTO-01**: Agent executes automated searches on LinkedIn Jobs, Indeed, and Computrabajo with configured filters using Playwright; returns minimum 20 results per active platform (when available); results deduplicated by URL (RF-12)
+- [x] **AUTO-02**: Every vacancy receives a compatibility score 0-100 comparing JD vs ProfessionalProfileType (skills match, seniority, language, modality, salary); vacancies sorted descending by score in the UI (RF-13)
 - [x] **AUTO-03**: System maintains a persistent MongoDB history of all vacancies seen/applied per user; vacancies with the same URL or (company + title) already in history are automatically excluded from new search results (RF-14)
 - [x] **AUTO-04**: Companies in the user's excludedCompanies list are filtered before displaying results or applying; excluded count visible in reports (RF-15)
 
@@ -44,7 +44,7 @@
 - [ ] **APPLY-01**: For LinkedIn vacancies with Easy Apply button, agent executes full multi-step form flow with submit; rate limiting 8-12s between applications; ApplicationRecord created with status=applied; CAPTCHA detected → pause and notify user (RF-16)
 - [ ] **APPLY-02**: For vacancies requiring email application, system generates a personalized email using Claude API with subject "[Full Name] - [Role] @ [Company]"; sends via SMTP; registers with status=email_sent, emailSubject, emailBody, recipientEmail, timestamp in < 5s (RF-17)
 - [ ] **APPLY-03**: Before sending email, user can preview the AI-generated draft, edit it, and approve or discard the send (active only in review mode) (RF-18)
-- [ ] **APPLY-04**: Agent enforces maxApplicationsPerSession limit; counter visible during execution; agent stops and notifies user when limit reached (RF-19)
+- [x] **APPLY-04**: Agent enforces maxApplicationsPerSession limit; counter visible during execution; agent stops and notifies user when limit reached (RF-19)
 
 ### History & Tracking (HIST)
 
@@ -67,7 +67,7 @@
 ### Non-Functional (NF)
 
 - [ ] **NF-01**: Dashboard loads in < 2 seconds; Lighthouse Performance >= 85; LCP < 2.5s (RNF-01)
-- [ ] **NF-02**: Compatibility scoring completes in < 500ms per vacancy; p95 < 500ms at 50 concurrent vacancies (RNF-02)
+- [x] **NF-02**: Compatibility scoring completes in < 500ms per vacancy; p95 < 500ms at 50 concurrent vacancies (RNF-02)
 - [x] **NF-03**: LinkedIn profile import completes in < 8 seconds end-to-end (RNF-03)
 - [ ] **NF-04**: Personalized email generation via Claude API in < 5 seconds; timeout at 8s; max 2 retries with backoff (RNF-04)
 - [x] **NF-05**: System supports 100 concurrent users running searches without degradation; p99 < 3s response time (RNF-07)
@@ -135,14 +135,14 @@
 | SRCH-01 | Phase 2 | Complete |
 | SRCH-02 | Phase 2 | Complete |
 | SRCH-03 | Phase 4 | Complete |
-| AUTO-01 | Phase 4 | Pending |
-| AUTO-02 | Phase 4 | Pending |
+| AUTO-01 | Phase 4 | Complete |
+| AUTO-02 | Phase 4 | Complete |
 | AUTO-03 | Phase 4 | Complete |
 | AUTO-04 | Phase 4 | Complete |
 | APPLY-01 | Phase 5 | Pending |
 | APPLY-02 | Phase 5 | Pending |
 | APPLY-03 | Phase 5 | Pending |
-| APPLY-04 | Phase 4 | Pending |
+| APPLY-04 | Phase 4 | Complete |
 | HIST-01 | Phase 5 | Pending |
 | HIST-02 | Phase 5 | Pending |
 | HIST-03 | Phase 5 | Pending |
@@ -153,7 +153,7 @@
 | REPT-04 | Phase 7 | Pending |
 | RT-01 | Phase 3 | Complete |
 | NF-01 | Phase 6 | Pending |
-| NF-02 | Phase 4 | Pending |
+| NF-02 | Phase 4 | Complete |
 | NF-03 | Phase 2 | Complete |
 | NF-04 | Phase 5 | Pending |
 | NF-05 | Phase 3 | Complete |
