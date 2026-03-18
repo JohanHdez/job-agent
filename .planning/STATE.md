@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 04-pipeline-search-scoring 04-01-PLAN.md
-last_updated: "2026-03-18T12:02:16.080Z"
+stopped_at: Completed 04-pipeline-search-scoring 04-02-PLAN.md
+last_updated: "2026-03-18T12:12:05.465Z"
 last_activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 15
-  completed_plans: 12
+  completed_plans: 13
   percent: 75
 ---
 
@@ -77,6 +77,7 @@ Progress: [██░░░░░░░░] 10%
 | Phase 03-sessions-bullmq P02 | 15 | 2 tasks | 6 files |
 | Phase 03-sessions-bullmq P03 | 10 | 3 tasks | 3 files |
 | Phase 04-pipeline-search-scoring PP01 | 5 | 2 tasks | 7 files |
+| Phase 04-pipeline-search-scoring P02 | 7 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -118,6 +119,8 @@ Recent decisions affecting current work:
 - [Phase 04-pipeline-search-scoring]: VacanciesModule exports MongooseModule so downstream modules inject InjectModel(Vacancy.name) without re-importing the schema
 - [Phase 04-pipeline-search-scoring]: ScoringAdapter.scoreBatch batches up to 5 jobs per call — callers are responsible for batching to stay within LLM token limits
 - [Phase 04-pipeline-search-scoring]: userId+company+title dedup index uses collation strength 2 (case-insensitive) to catch duplicate postings with different title casing
+- [Phase 04-pipeline-search-scoring]: createSession signature changed to (userId) only — service resolves SearchConfigSnapshotType internally from user's active preset, callers cannot inject arbitrary config
+- [Phase 04-pipeline-search-scoring]: VacanciesModule exports VacanciesService and MongooseModule — service for worker pipeline use in Plan 03, MongooseModule for direct model injection downstream
 
 ### Pending Todos
 
@@ -132,6 +135,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T12:02:16.073Z
-Stopped at: Completed 04-pipeline-search-scoring 04-01-PLAN.md
+Last session: 2026-03-18T12:12:05.437Z
+Stopped at: Completed 04-pipeline-search-scoring 04-02-PLAN.md
 Resume file: None
