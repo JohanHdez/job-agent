@@ -54,7 +54,7 @@ export interface JobSkippedEvent {
   /** Platform-scoped unique identifier for this job listing */
   jobId: string;
   /** Reason the job was skipped */
-  reason: 'score_too_low' | 'already_applied' | 'excluded_company';
+  reason: 'score_too_low' | 'already_applied' | 'excluded_company' | 'missing_fields';
   /** ISO 8601 timestamp */
   timestamp: string;
 }
