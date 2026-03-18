@@ -45,9 +45,9 @@ Declared values (multiples of 4 only):
 | 3xl | 64px | Empty state icon container size, major page breathing room |
 
 Exceptions:
-- Modal overlay: 20px vertical padding on email draft preview card (nearest 4px grid: 20px is acceptable — existing pattern observed in LoginPage card py-9 = 36px)
-- Touch targets on destructive action buttons: minimum 44px height (WCAG 2.5.5 AA)
-- Application status timeline items: 12px gap (existing pattern in stat cards; 12px = 3 × 4)
+- Modal overlay: 16px vertical padding on email draft preview card (standard grid value — md token)
+- Touch targets on destructive action buttons: minimum 48px height (WCAG 2.5.5 AA — maps to 2xl token)
+- Application status timeline items: 16px gap (md token — maps to standard grid)
 
 Source: Observed spacing constants across AppLayout.tsx, ApplicationHistoryPage.tsx, LoginPage.tsx.
 
@@ -59,10 +59,12 @@ Source: Observed spacing constants across AppLayout.tsx, ApplicationHistoryPage.
 |------|------|--------|-------------|--------|
 | Body | 13px | 400 | 1.5 | AppLayout.tsx NavItem, ApplicationHistoryPage.tsx TD |
 | Label | 11px | 600 | 1.4 | AppLayout.tsx section label, StatCard label, StatusBadge |
-| Heading | 24px | 800 | 1.2 | ApplicationHistoryPage.tsx h1, letter-spacing -0.04em |
-| Display | 28px | 800 | 1.0 | StatCard value number, letter-spacing -0.04em, tabular-nums |
+| Heading | 24px | 600 | 1.2 | ApplicationHistoryPage.tsx h1, letter-spacing -0.04em |
+| Display | 28px | 600 | 1.0 | StatCard value number, letter-spacing -0.04em, tabular-nums |
 
-Additional in-use size — 15px weight 500 — for modal sub-headings and card headings (LoginPage "Welcome back" uses 24px; feature items use 13px semibold). Use 15px/500 only for card-level sub-section titles inside the email draft modal.
+Declared weights: **400** (body) and **600** (labels, headings, display). No other weights are permitted in Phase 5 components.
+
+Modal sub-section titles and card-level heading titles use 13px weight 600 (label scale) — not a separate size.
 
 Font stack: `'Inter', system-ui, sans-serif` — declared in index.css body rule and AppLayout.tsx fontFamily inline style. All Phase 5 components MUST inherit this stack; never declare a different font.
 
@@ -88,8 +90,8 @@ Font stack: `'Inter', system-ui, sans-serif` — declared in index.css body rule
 **Accent is NOT used for:** secondary/ghost buttons, table row hover, status badges (those use semantic colors below), regular text links.
 
 **Semantic status colors (used in badges and score pills — sourced from ApplicationHistoryPage.tsx):**
-- Success / Applied / Score ≥ 80: #22c55e (green-500)
-- Warning / Skipped / Score 60–79: #eab308 (yellow-500)
+- Success / Applied / Score >= 80: #22c55e (green-500)
+- Warning / Skipped / Score 60-79: #eab308 (yellow-500)
 - Destructive / Failed / Score < 60: #ef4444 (red-500)
 - Neutral / Already Applied / No Easy Apply: #6b7280 (gray-500)
 - Amber / session_expired info banner: #fbbf24 (amber-400)
@@ -133,10 +135,10 @@ Components to be built or extended in Phase 5. Each maps to a feature requiremen
 **Trigger:** User clicks "Apply by Email" on a vacancy card in the Dashboard or job results view.
 
 **States:**
-1. **Loading** — Spinner centered in modal body. Copy: "Generating your personalized email…"
+1. **Loading** — Spinner centered in modal body. Copy: "Generating your personalized email..."
 2. **Draft ready** — Two-panel layout: left = editable subject + body textarea (pre-filled by Claude); right = vacancy title + company + score badge.
 3. **Recipient override** — Email input field pre-filled from `vacancy.recipientEmail`; user can edit before confirming.
-4. **Sending** — CTA button shows spinner, disabled. Copy: "Sending…"
+4. **Sending** — CTA button shows spinner, disabled. Copy: "Sending..."
 5. **Sent** — Modal closes; toast notification appears at top-right. Copy: "Email sent to [recipientEmail]."
 6. **Error** — Inline error banner inside modal. Copy pattern: "Could not send email. [Reason]. Try again or discard."
 
@@ -144,7 +146,7 @@ Components to be built or extended in Phase 5. Each maps to a feature requiremen
 
 **CTA placement:** Bottom-right of modal. Primary CTA = "Send Email" (accent fill). Secondary = "Save Draft" (ghost). Tertiary = "Discard" (text-only, destructive color on hover).
 
-**Edit area constraints:** Textarea for body has `min-height: 160px`, `max-height: 320px`, `resize: vertical`. Subject input is single-line. Both fields have character counters: subject ≤ 120 chars, body ≤ 800 chars (150 words ≈ 750 chars; extra buffer for safety).
+**Edit area constraints:** Textarea for body has `min-height: 160px`, `max-height: 320px`, `resize: vertical`. Subject input is single-line. Both fields have character counters: subject <= 120 chars, body <= 800 chars (150 words ~= 750 chars; extra buffer for safety).
 
 ### ApplicationDetailDrawer
 
@@ -153,7 +155,7 @@ Components to be built or extended in Phase 5. Each maps to a feature requiremen
 **Layout:** Right-side drawer, width 480px on desktop. Slides in from right (transform translateX, 200ms ease). Overlay background same as modal.
 
 **Sections (top to bottom):**
-1. Header: job title (heading size), company (body muted), close button (X icon top-right)
+1. Header: job title (heading size), company (body muted), close button (X icon top-right, `aria-label="Close application details"`)
 2. Status timeline — vertical list of `history[]` entries; most recent first; each entry shows status badge + timestamp + optional note
 3. Job details — score pill, platform badge, modality badge, `apply_link` as external link
 4. Email content (if `emailContent` exists) — collapsible section: "Email Sent" heading, subject line, full body text in monospace-like card (#13131c background)
@@ -167,13 +169,13 @@ Components to be built or extended in Phase 5. Each maps to a feature requiremen
 
 **Options (in order):** Tracking Active, Interview Scheduled, Offer Received, Rejected. Each option has a colored dot indicator matching its semantic color. Selecting an option closes the menu and immediately PATCHes the status — no additional confirmation.
 
-**Optional note field:** Text input appears below the options list after selection, before confirming. Placeholder: "Add a note (optional)". Confirm button: "Save Status". Cancel: "Cancel" (text link).
+**Optional note field:** Text input appears below the options list after selection, before confirming. Placeholder: "Add a note (optional)". Confirm button: "Save Status". Cancel: "Never mind" (text link).
 
 ### PendingReviewQueue
 
 **Location:** Dashboard page, above the session progress area.
 
-**Appearance:** Horizontal scrollable card row when ≥ 1 draft exists. Card width: 260px. Card shows: company, job title (truncated to 1 line), score pill, "Review Draft" CTA (accent ghost button). Badge on nav item "Applications" (or "History") showing pending count when > 0.
+**Appearance:** Horizontal scrollable card row when >= 1 draft exists. Card width: 260px. Card shows: company, job title (truncated to 1 line), score pill, "Review Draft" CTA (accent ghost button). Badge on nav item "Applications" (or "History") showing pending count when > 0.
 
 **Empty:** Component is hidden entirely — no empty state rendered in this position.
 
@@ -203,14 +205,15 @@ Components to be built or extended in Phase 5. Each maps to a feature requiremen
 | Empty state — history (no applications) | Heading: "No applications yet" / Body: "Run the agent to start applying. Results will appear here." | Pre-populated from ApplicationHistoryPage.tsx EmptyState |
 | Empty state — history (filtered, no results) | Heading: "No results for these filters" / Body: "Try clearing some filters to see more applications." | Derived from HIST-01 filter requirement |
 | Empty state — pending review | Hidden — component not rendered | CONTEXT.md: PendingReviewQueue hidden when empty |
-| Loading state — email draft generation | "Generating your personalized email…" | APPLY-02 / NF-04: up to 8s generation |
-| Loading state — sending email | "Sending…" | APPLY-02 |
+| Loading state — email draft generation | "Generating your personalized email..." | APPLY-02 / NF-04: up to 8s generation |
+| Loading state — sending email | "Sending..." | APPLY-02 |
 | Success toast — email sent | "Email sent to [recipientEmail]." | APPLY-02 |
 | Error — email generation failed | "Could not generate email draft. [Reason]. Try again or discard." | NF-04 timeout/retry pattern |
 | Error — SMTP send failed | "Failed to send email. Check your email configuration and try again." | APPLY-02 SMTP error path |
 | Error — API unavailable | "Could not connect to the server. Make sure the API is running." | Pre-populated from ApplicationHistoryPage.tsx error pattern |
 | Destructive — discard draft | Label: "Discard" / Confirmation: inline destructive color change on hover — no separate modal; single click discards | APPLY-03: user can discard before send |
 | Destructive — delete application record | Not in Phase 5 scope — no delete action | CONTEXT.md deferred |
+| StatusUpdateMenu cancel action | "Never mind" (text link) | Checker revision: replaces generic "Cancel" label |
 | SMTP password field note | "Stored encrypted. For Gmail, use an App Password." | CONTEXT.md SMTP + Google pre-fill decision |
 | Recipient override note | "You can edit the recipient address before sending." | CONTEXT.md email detection decision point 3 |
 | Manual apply fallback (no email detected, score > 80) | Badge: "Apply Manually" (neutral gray) / Tooltip: "No email found. Apply directly on the company site." | CONTEXT.md emailDetectionMethod = manual_required |
@@ -250,11 +253,12 @@ Minimum compliance: WCAG 2.1 AA (per NF-16 Lighthouse Accessibility >= 90).
 
 - All interactive elements have `aria-label` or visible text label — follow pattern from AppLayout NavItem `aria-label={label}`.
 - Modal and drawer: trap focus while open; restore focus to trigger on close. Use `role="dialog"` and `aria-modal="true"`.
+- ApplicationDetailDrawer close button: `aria-label="Close application details"` (explicit declaration — Dimension 2 requirement).
 - StatusUpdateMenu: implement as `role="listbox"` or `role="menu"` with keyboard navigation (arrow keys, Enter, Escape).
 - Error banners: use `role="alert"`. Info/status banners: use `role="status"`.
 - Score pills: include visually hidden text — e.g. `<span className="sr-only">Compatibility score: </span>` before the numeric value.
 - `prefers-reduced-motion`: drawer slide-in and modal fade-in transitions MUST be disabled when reduced motion is preferred (follow LoginPage's `@media (prefers-reduced-motion: reduce)` pattern).
-- Touch targets: all clickable elements minimum 44x44px on mobile (WCAG 2.5.5).
+- Touch targets: all clickable elements minimum 48x48px on mobile (WCAG 2.5.5 — maps to standard 48px grid value).
 
 ---
 
