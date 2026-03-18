@@ -102,7 +102,13 @@ Plans:
   3. For an email-apply vacancy, the user sees a preview modal with the AI-generated email, can edit it, and approves or discards before any email is sent
   4. The agent stops after reaching maxApplicationsPerSession and notifies the user; the counter is visible during execution
   5. User can view a paginated history of all applications filterable by date, company, platform, and status; clicking an application shows the full JD, score, sent email, and status change timeline
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Define Phase 5 type contracts, extend Vacancy schema, create Application schema, email detection utility
+- [ ] 05-02-PLAN.md — ApplicationsModule: ClaudeEmailDraftAdapter, EmailSenderService, CRUD service, REST controller, AppModule registration
+- [ ] 05-03-PLAN.md — Extend User schema with smtpConfig, PUT/GET smtp-config endpoints, AES-256-GCM password encryption
+- [ ] 05-04-PLAN.md — Frontend: EmailDraftModal, ApplicationDetailDrawer, StatusUpdateMenu, ApplicationFilters, CsvExportButton, SmtpConfigSection, PendingReviewQueue, ApplicationHistoryPage upgrade
 
 ### Phase 6: React Frontend
 **Goal**: The full React 18 + Vite SaaS UI replaces the vanilla HTML configuration page: OAuth login, persistent sidebar navigation with avatar, dashboard with live session progress via SSE, search configuration form validated against AppConfigType, job results cards with score badges, application history with CSV export, and an editable profile page.
@@ -138,6 +144,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Auth + Users | 4/5 | In Progress|  |
 | 3. Sessions + BullMQ | 2/3 | Complete    | 2026-03-18 |
 | 4. Pipeline — Search + Scoring | 3/3 | Complete   | 2026-03-18 |
-| 5. Application Automation | 0/TBD | Not started | - |
+| 5. Application Automation | 0/4 | Not started | - |
 | 6. React Frontend | 0/TBD | Not started | - |
 | 7. Reports + Metrics | 0/TBD | Not started | - |
