@@ -10,22 +10,26 @@
  * Responsibilities:
  * 1. Connects to Redis (BullMQ consumer) and MongoDB (event persistence)
  * 2. Picks up `search-session` jobs from the BullMQ queue (concurrency: 2)
- * 3. Runs the stub pipeline (Phase 3: mock events; Phase 4: real LinkedIn scraping)
- * 4. Persists each event to MongoDB via a ring-buffer ($push + $slice: -100)
- * 5. Publishes each event to Redis Pub/Sub channel `session:{sessionId}:events`
+ * 3. Loads session config and user profile from MongoDB
+ * 4. Runs the real search pipeline via runSearchPipeline (Phase 4)
+ * 5. Persists each event to MongoDB via a ring-buffer ($push + $slice: -100)
+ * 6. Publishes each event to Redis Pub/Sub channel `session:{sessionId}:events`
  *    so the NestJS SSE gateway can push them to the connected browser in real time
- * 6. Updates session status: queued → running → completed | cancelled
+ * 7. Updates session status: queued → running → completed | cancelled
  *
  * @module search-session.worker
  */
 
 import { Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
-import mongoose, { Schema, Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
+import type { Model } from 'mongoose';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import chalk = require('chalk');
-import { generateMockSessionEvents } from './mock-data.generator.js';
-import type { StoredSessionEvent, SessionStatus } from '@job-agent/core';
+import type { StoredSessionEvent, SessionStatus, SearchConfigSnapshotType, ProfessionalProfile } from '@job-agent/core';
+import { JSearchAdapter } from './adapters/jsearch.adapter.js';
+import { ClaudeScoringAdapter } from './adapters/claude-scoring.adapter.js';
+import { runSearchPipeline, type AnyModel } from './pipeline.js';
 
 // ---------------------------------------------------------------------------
 // Environment
@@ -64,6 +68,14 @@ const sessionSchema = new Schema<SessionDocumentRaw>(
 let SessionModel: Model<SessionDocumentRaw>;
 
 // ---------------------------------------------------------------------------
+// Minimal User schema for the worker (read-only — fetch profile only)
+// ---------------------------------------------------------------------------
+
+const userSchema = new Schema({}, { strict: false, collection: 'users' });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let UserModel: ReturnType<typeof mongoose.model<any>>;
+
+// ---------------------------------------------------------------------------
 // Redis publisher connection (separate from BullMQ consumer connection)
 // Both connections require maxRetriesPerRequest: null for BullMQ compatibility
 // ---------------------------------------------------------------------------
@@ -84,21 +96,23 @@ interface SearchSessionJobData {
 // ---------------------------------------------------------------------------
 
 /**
- * Processes a single BullMQ search-session job.
+ * Processes a single BullMQ search-session job via the real pipeline.
  *
- * 1. Updates session status → 'running'
- * 2. Generates mock events (Phase 3 stub)
- * 3. For each event: persists to MongoDB ring buffer and publishes to Redis Pub/Sub
- * 4. Respects cancellation: checks session status before each event
- * 5. Updates session status → 'completed' (or leaves as 'cancelled')
+ * 1. Marks session status → 'running'
+ * 2. Loads session config (SearchConfigSnapshotType) from MongoDB
+ * 3. Loads user profile (ProfessionalProfile) from MongoDB
+ * 4. Creates JSearchAdapter and ClaudeScoringAdapter from env vars
+ * 5. Runs runSearchPipeline (search → filter → score → persist → emit SSE events)
+ * 6. Marks session status → 'completed' (or leaves as 'cancelled')
  *
  * @param job - BullMQ Job containing sessionId and userId
  */
 async function processSession(job: Job<SearchSessionJobData>): Promise<void> {
   const { sessionId, userId } = job.data;
-  const channel = `session:${sessionId}:events`;
 
-  process.stdout.write(chalk.blue(`[search-session-worker] Starting job ${job.id} for session ${sessionId}\n`));
+  process.stdout.write(
+    chalk.blue(`[search-session-worker] Starting job ${job.id} for session ${sessionId}\n`),
+  );
 
   // 1. Mark session as running
   await SessionModel.updateOne(
@@ -106,57 +120,82 @@ async function processSession(job: Job<SearchSessionJobData>): Promise<void> {
     { $set: { status: 'running', startedAt: new Date() } },
   );
 
-  // 2. Generate mock event sequence (Phase 3 stub)
-  const events = generateMockSessionEvents(sessionId, userId);
+  // 2. Load session config
+  const session = (await SessionModel.findById(sessionId).lean()) as {
+    config: SearchConfigSnapshotType;
+  } | null;
 
-  // 3. Emit each event with a realistic delay
-  for (const event of events) {
-    // Cancellation check — stop publishing if the user cancelled the session
-    const session = await SessionModel.findById(sessionId, { status: 1 }).lean();
-    if (session?.status === 'cancelled') {
-      process.stdout.write(chalk.yellow(`[search-session-worker] Session ${sessionId} was cancelled — stopping event loop\n`));
-      break;
-    }
-
-    // Persist to MongoDB: atomically increment counter to get stable event ID
-    const updated = await SessionModel.findByIdAndUpdate(
-      sessionId,
-      { $inc: { nextEventId: 1 } },
-      { new: true, projection: { nextEventId: 1 } },
-    ).lean();
-
-    const eventId = updated!.nextEventId;
-
-    const storedEvent: StoredSessionEvent = {
-      id: eventId,
-      type: event.type,
-      data: event as unknown as Record<string, unknown>,
-      timestamp: event.timestamp,
-    };
-
-    // Ring-buffer append: keep only the last 100 events
+  if (!session?.config) {
+    process.stderr.write(
+      chalk.red(`[search-session-worker] Session ${sessionId} has no config\n`),
+    );
     await SessionModel.updateOne(
       { _id: sessionId },
-      { $push: { events: { $each: [storedEvent], $slice: -100 } } },
+      { $set: { status: 'failed', completedAt: new Date() } },
     );
-
-    // Publish to Redis Pub/Sub so live SSE consumers receive the event immediately
-    await publisher.publish(channel, JSON.stringify(storedEvent));
-
-    // Simulate real search work: 500–1500ms delay between events
-    await new Promise<void>((resolve) =>
-      setTimeout(resolve, 500 + Math.random() * 1000),
-    );
+    return;
   }
 
-  // 4. Mark session as completed (unless it was cancelled in the loop above)
-  const finalSession = await SessionModel.findById(sessionId, { status: 1 }).lean();
+  // 3. Load user profile
+  const user = (await UserModel.findById(userId).lean()) as {
+    profile: ProfessionalProfile | null;
+  } | null;
+
+  if (!user?.profile) {
+    process.stderr.write(
+      chalk.red(`[search-session-worker] User ${userId} has no profile\n`),
+    );
+    await SessionModel.updateOne(
+      { _id: sessionId },
+      { $set: { status: 'failed', completedAt: new Date() } },
+    );
+    return;
+  }
+
+  // 4. Create adapters from environment variables
+  const rapidApiKey = process.env['RAPIDAPI_KEY'] ?? '';
+  const anthropicKey = process.env['ANTHROPIC_API_KEY'] ?? '';
+
+  if (!rapidApiKey) {
+    process.stderr.write(chalk.yellow('[search-session-worker] RAPIDAPI_KEY not set — JSearch calls will fail\n'));
+  }
+  if (!anthropicKey) {
+    process.stderr.write(chalk.yellow('[search-session-worker] ANTHROPIC_API_KEY not set — scoring will return 0s\n'));
+  }
+
+  const adapter = new JSearchAdapter(rapidApiKey);
+  const scorer = new ClaudeScoringAdapter(anthropicKey);
+
+  // 5. Run pipeline
+  try {
+    await runSearchPipeline({
+      sessionId,
+      userId,
+      config: session.config,
+      profile: user.profile,
+      adapter,
+      scorer,
+      publisher,
+      SessionModel: SessionModel as unknown as AnyModel,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    process.stderr.write(chalk.red(`[search-session-worker] Pipeline error: ${message}\n`));
+  }
+
+  // 6. Mark session as completed (unless cancelled by user)
+  const finalSession = (await SessionModel.findById(sessionId, { status: 1 }).lean()) as {
+    status: string;
+  } | null;
+
   if (finalSession?.status !== 'cancelled') {
     await SessionModel.updateOne(
       { _id: sessionId },
       { $set: { status: 'completed', completedAt: new Date() } },
     );
-    process.stdout.write(chalk.green(`[search-session-worker] Session ${sessionId} completed\n`));
+    process.stdout.write(
+      chalk.green(`[search-session-worker] Session ${sessionId} completed\n`),
+    );
   }
 }
 
@@ -182,26 +221,41 @@ const worker = new Worker<SearchSessionJobData>(
 );
 
 worker.on('completed', (job: Job<SearchSessionJobData>) => {
-  process.stdout.write(chalk.green(`[search-session-worker] Job ${job.id} completed successfully\n`));
+  process.stdout.write(
+    chalk.green(`[search-session-worker] Job ${job.id} completed successfully\n`),
+  );
 });
 
 worker.on('failed', (job: Job<SearchSessionJobData> | undefined, err: Error) => {
-  process.stderr.write(chalk.red(`[search-session-worker] Job ${job?.id} failed: ${err.message}\n`));
+  process.stderr.write(
+    chalk.red(`[search-session-worker] Job ${job?.id} failed: ${err.message}\n`),
+  );
 });
 
 // ---------------------------------------------------------------------------
 // Startup: connect to MongoDB then start consuming
 // ---------------------------------------------------------------------------
 
+/**
+ * Initialises MongoDB connections and starts the BullMQ worker.
+ * Exits process with code 1 on connection failure.
+ */
 async function start(): Promise<void> {
   try {
     await mongoose.connect(MONGO_URI);
     SessionModel = mongoose.model<SessionDocumentRaw>('Session', sessionSchema);
-    process.stdout.write(chalk.blue(`[search-session-worker] Connected to MongoDB at ${MONGO_URI}\n`));
-    process.stdout.write(chalk.blue('[search-session-worker] Worker listening on queue: search-session\n'));
+    UserModel = mongoose.model('User', userSchema);
+    process.stdout.write(
+      chalk.blue(`[search-session-worker] Connected to MongoDB at ${MONGO_URI}\n`),
+    );
+    process.stdout.write(
+      chalk.blue('[search-session-worker] Worker listening on queue: search-session\n'),
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    process.stderr.write(chalk.red(`[search-session-worker] Startup failed: ${message}\n`));
+    process.stderr.write(
+      chalk.red(`[search-session-worker] Startup failed: ${message}\n`),
+    );
     process.exit(1);
   }
 }
@@ -214,7 +268,9 @@ void start();
 
 process.on('SIGTERM', () => {
   void (async () => {
-    process.stdout.write(chalk.yellow('[search-session-worker] SIGTERM received — shutting down gracefully\n'));
+    process.stdout.write(
+      chalk.yellow('[search-session-worker] SIGTERM received — shutting down gracefully\n'),
+    );
     try {
       await worker.close();
       await publisher.quit();
@@ -222,7 +278,9 @@ process.on('SIGTERM', () => {
       process.stdout.write(chalk.green('[search-session-worker] Shutdown complete\n'));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      process.stderr.write(chalk.red(`[search-session-worker] Shutdown error: ${message}\n`));
+      process.stderr.write(
+        chalk.red(`[search-session-worker] Shutdown error: ${message}\n`),
+      );
     } finally {
       process.exit(0);
     }
