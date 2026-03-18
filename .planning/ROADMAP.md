@@ -144,6 +144,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Auth + Users | 4/5 | In Progress|  |
 | 3. Sessions + BullMQ | 2/3 | Complete    | 2026-03-18 |
 | 4. Pipeline — Search + Scoring | 3/3 | Complete   | 2026-03-18 |
-| 5. Application Automation | 2/4 | In Progress|  |
+| 5. Application Automation | 3/4 | In Progress|  |
 | 6. React Frontend | 0/TBD | Not started | - |
 | 7. Reports + Metrics | 0/TBD | Not started | - |
