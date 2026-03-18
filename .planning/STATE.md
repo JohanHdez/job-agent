@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Phase 4 plans verified (PASS) — ready to execute
-last_updated: "2026-03-18T11:49:07.564Z"
+stopped_at: Completed 04-pipeline-search-scoring 04-01-PLAN.md
+last_updated: "2026-03-18T12:02:16.080Z"
 last_activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 15
-  completed_plans: 11
+  completed_plans: 12
   percent: 75
 ---
 
@@ -76,6 +76,7 @@ Progress: [██░░░░░░░░] 10%
 | Phase 03-sessions-bullmq P01 | 9 | 2 tasks | 8 files |
 | Phase 03-sessions-bullmq P02 | 15 | 2 tasks | 6 files |
 | Phase 03-sessions-bullmq P03 | 10 | 3 tasks | 3 files |
+| Phase 04-pipeline-search-scoring PP01 | 5 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,9 @@ Recent decisions affecting current work:
 - [Phase 03-sessions-bullmq]: child_process.fork chosen over BullMQ sandboxed processor — simpler path resolution for monorepo dist/ layout
 - [Phase 03-sessions-bullmq]: Worker has its own ioredis + mongoose connections — no shared state with NestJS process, ensures crash isolation
 - [Phase 03-sessions-bullmq]: mock-data.generator.ts is Phase 3 stub — Phase 4 replaces call site with real LinkedIn pipeline without touching worker architecture
+- [Phase 04-pipeline-search-scoring]: VacanciesModule exports MongooseModule so downstream modules inject InjectModel(Vacancy.name) without re-importing the schema
+- [Phase 04-pipeline-search-scoring]: ScoringAdapter.scoreBatch batches up to 5 jobs per call — callers are responsible for batching to stay within LLM token limits
+- [Phase 04-pipeline-search-scoring]: userId+company+title dedup index uses collation strength 2 (case-insensitive) to catch duplicate postings with different title casing
 
 ### Pending Todos
 
@@ -128,6 +132,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T11:49:07.530Z
-Stopped at: Phase 4 plans verified (PASS) — ready to execute
-Resume file: .planning/phases/04-pipeline-search-scoring/04-01-PLAN.md
+Last session: 2026-03-18T12:02:16.073Z
+Stopped at: Completed 04-pipeline-search-scoring 04-01-PLAN.md
+Resume file: None

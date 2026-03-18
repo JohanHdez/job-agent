@@ -30,14 +30,14 @@
 
 - [x] **SRCH-01**: User can configure search: keywords, location, modality (Remote/Hybrid/On-site), target platforms (LinkedIn, Indeed, Computrabajo), seniority, languages, date posted, min score, max applications, excluded companies; config persists in MongoDB and can be saved as a named preset (RF-09)
 - [x] **SRCH-02**: User can save up to 5 named search presets and switch between them (RF-10)
-- [ ] **SRCH-03**: User selects which platforms to search (LinkedIn Jobs, Indeed, Computrabajo); searches run in parallel; results are labeled by platform of origin (RF-11)
+- [x] **SRCH-03**: User selects which platforms to search (LinkedIn Jobs, Indeed, Computrabajo); searches run in parallel; results are labeled by platform of origin (RF-11)
 
 ### Automation & Matching (AUTO)
 
 - [ ] **AUTO-01**: Agent executes automated searches on LinkedIn Jobs, Indeed, and Computrabajo with configured filters using Playwright; returns minimum 20 results per active platform (when available); results deduplicated by URL (RF-12)
 - [ ] **AUTO-02**: Every vacancy receives a compatibility score 0-100 comparing JD vs ProfessionalProfileType (skills match, seniority, language, modality, salary); vacancies sorted descending by score in the UI (RF-13)
-- [ ] **AUTO-03**: System maintains a persistent MongoDB history of all vacancies seen/applied per user; vacancies with the same URL or (company + title) already in history are automatically excluded from new search results (RF-14)
-- [ ] **AUTO-04**: Companies in the user's excludedCompanies list are filtered before displaying results or applying; excluded count visible in reports (RF-15)
+- [x] **AUTO-03**: System maintains a persistent MongoDB history of all vacancies seen/applied per user; vacancies with the same URL or (company + title) already in history are automatically excluded from new search results (RF-14)
+- [x] **AUTO-04**: Companies in the user's excludedCompanies list are filtered before displaying results or applying; excluded count visible in reports (RF-15)
 
 ### Applications (APPLY)
 
@@ -51,7 +51,7 @@
 - [ ] **HIST-01**: User can view a paginated (20/page) global history of all applications across all sessions, filterable by date, company, platform, and status; exportable to CSV (RF-20)
 - [ ] **HIST-02**: Clicking an application in history shows: full JD, score, sent email (if applicable), link to vacancy, current status, and state change timeline (RF-21)
 - [ ] **HIST-03**: User can manually update the status of an application (e.g., "interview scheduled", "offer received", "rejected"); change persists in MongoDB with timestamp (RF-22)
-- [ ] **HIST-04**: User can mark a vacancy as "Not interested" to exclude it from future searches without applying; added to history with status=dismissed (RF-23)
+- [x] **HIST-04**: User can mark a vacancy as "Not interested" to exclude it from future searches without applying; added to history with status=dismissed (RF-23)
 
 ### Reports (REPT)
 
@@ -134,11 +134,11 @@
 | PROF-04 | Phase 2 | Complete |
 | SRCH-01 | Phase 2 | Complete |
 | SRCH-02 | Phase 2 | Complete |
-| SRCH-03 | Phase 4 | Pending |
+| SRCH-03 | Phase 4 | Complete |
 | AUTO-01 | Phase 4 | Pending |
 | AUTO-02 | Phase 4 | Pending |
-| AUTO-03 | Phase 4 | Pending |
-| AUTO-04 | Phase 4 | Pending |
+| AUTO-03 | Phase 4 | Complete |
+| AUTO-04 | Phase 4 | Complete |
 | APPLY-01 | Phase 5 | Pending |
 | APPLY-02 | Phase 5 | Pending |
 | APPLY-03 | Phase 5 | Pending |
@@ -146,7 +146,7 @@
 | HIST-01 | Phase 5 | Pending |
 | HIST-02 | Phase 5 | Pending |
 | HIST-03 | Phase 5 | Pending |
-| HIST-04 | Phase 4 | Pending |
+| HIST-04 | Phase 4 | Complete |
 | REPT-01 | Phase 7 | Pending |
 | REPT-02 | Phase 7 | Pending |
 | REPT-03 | Phase 7 | Pending |
