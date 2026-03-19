@@ -11,14 +11,14 @@
 import fs from 'fs/promises';
 import path from 'path';
 import type { ProfessionalProfile } from '@job-agent/core';
-import { parseCV } from './parsers/pdf.parser.js';
-import { buildProfile } from './extractors/profile.builder.js';
-import { extractProfileWithClaude } from './extractors/claude.extractor.js';
-import { logger } from './utils/logger.js';
+import { parseCV } from './parsers/pdf.parser';
+import { buildProfile } from './extractors/profile.builder';
+import { extractProfileWithClaude } from './extractors/claude.extractor';
+import { logger } from './utils/logger';
 
-export { parseCV } from './parsers/pdf.parser.js';
-export { buildProfile } from './extractors/profile.builder.js';
-export { extractProfileWithClaude } from './extractors/claude.extractor.js';
+export { parseCV } from './parsers/pdf.parser';
+export { buildProfile } from './extractors/profile.builder';
+export { extractProfileWithClaude } from './extractors/claude.extractor';
 
 /**
  * Full pipeline: parse a CV file and return the professional profile.

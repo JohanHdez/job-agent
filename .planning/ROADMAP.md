@@ -32,12 +32,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. All packages/core shared types compile under TypeScript strict mode with zero errors and zero `any`
   4. Every NestJS module logs structured JSON (correlationId, userId, ISO timestamp) via the shared Winston factory — no `console.log` in any module
   5. CI/CD pipeline runs on every push: tsc --noEmit passes, secret scan passes, test coverage gate enforced
-**Plans**: 3 plans
+**Plans**: 4 plans
 
 Plans:
 - [x] 01-01-PLAN.md — Migrate user-service to apps/api, create packages/logger TypeScript source, pin TypeScript monorepo-wide
 - [x] 01-02-PLAN.md — Wire NestJS infrastructure modules (Health, Logger, JwtGuard, CorrelationInterceptor) and write Jest tests
 - [ ] 01-03-PLAN.md — Rewrite CI/CD pipeline with typecheck + Jest coverage + gitleaks gates
+- [ ] 01-04-PLAN.md — [GAP CLOSURE] Rebuild packages/core dist and fix dev:services to build dependencies first
 
 ### Phase 2: Auth + Users
 **Goal**: Users can authenticate via LinkedIn OAuth or Google OAuth, receive JWT access and refresh tokens, import their professional profile (via CV upload or LinkedIn API scan), edit profile fields, configure search preferences, and save up to 5 named presets — all data persisted per-user in MongoDB.
@@ -49,7 +50,14 @@ Plans:
   3. User can import their LinkedIn profile and all work experience, education, and skills fields are populated in under 8 seconds
   4. User can edit profile fields (skills, seniority, languages, experience), save, and the next session uses the updated values
   5. User can create, switch between, and delete up to 5 named search presets; the active preset persists between sessions
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Define SearchPresetType, Redis provider, extend User schema, create DTOs
+- [ ] 02-02-PLAN.md — Migrate OAuth to code-exchange pattern, cookie-based refresh, auth tests
+- [ ] 02-03-PLAN.md — Users REST API: profile CRUD, CV upload, preset CRUD with 5-cap
+- [ ] 02-04-PLAN.md — Frontend auth migration: code-exchange callback, silent refresh, axios interceptor
+- [ ] 02-05-PLAN.md — Frontend UI: ProfileSetupPage, profile edit mode, preset management in ConfigPage
 
 ### Phase 3: Sessions + BullMQ
 **Goal**: Users can start a job search session via POST /sessions and watch real-time progress events in the browser via SSE — with events persisted to MongoDB so a page refresh or reconnect replays missed events from the correct position.
@@ -116,8 +124,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/3 | In Progress|  |
-| 2. Auth + Users | 0/TBD | Not started | - |
+| 1. Foundation | 3/4 | In Progress|  |
+| 2. Auth + Users | 4/5 | In Progress|  |
 | 3. Sessions + BullMQ | 0/TBD | Not started | - |
 | 4. Pipeline — Search + Scoring | 0/TBD | Not started | - |
 | 5. Application Automation | 0/TBD | Not started | - |

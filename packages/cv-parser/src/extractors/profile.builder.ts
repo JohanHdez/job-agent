@@ -5,7 +5,7 @@ import type {
   Language,
   RawCvData,
 } from '@job-agent/core';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/logger';
 
 /**
  * Heuristic patterns for extracting structured data from CV text.

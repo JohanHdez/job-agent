@@ -37,6 +37,7 @@ export class LinkedInStrategy extends PassportStrategy(Strategy, 'linkedin') {
       clientSecret: process.env['LINKEDIN_CLIENT_SECRET'] ?? '',
       callbackURL: process.env['LINKEDIN_CALLBACK_URL'] ?? 'http://localhost:3001/auth/linkedin/callback',
       scope: ['openid', 'profile', 'email'],
+      state: false,
     });
   }
 
@@ -45,7 +46,7 @@ export class LinkedInStrategy extends PassportStrategy(Strategy, 'linkedin') {
    * Fetches the OIDC userinfo and upserts the user in MongoDB.
    */
   async validate(accessToken: string): Promise<UserDocument> {
-    const res = await fetch('https://api.linkedin.com/oidc/userinfo', {
+    const res = await fetch('https://api.linkedin.com/v2/userinfo', {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 

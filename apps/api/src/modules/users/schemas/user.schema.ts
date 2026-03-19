@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import type { ProfessionalProfile, SearchPresetType } from '@job-agent/core';
 
 /** Auth providers a user can link to their account */
 export type AuthProvider = 'linkedin' | 'google';
@@ -67,6 +68,37 @@ export class User {
     default: [],
   })
   refreshTokens!: StoredRefreshToken[];
+
+  // ── Phase 2: Profile + Search Presets ───────────────────────────────────────
+
+  /**
+   * Parsed CV / professional profile stored as a flexible subdocument.
+   * Shape mirrors ProfessionalProfile from @job-agent/core.
+   */
+  @Prop({ type: Object, default: null })
+  profile!: ProfessionalProfile | null;
+
+  /**
+   * Named search configuration presets saved by the user.
+   * Each element mirrors SearchPresetType from @job-agent/core.
+   */
+  @Prop({ type: [Object], default: [] })
+  searchPresets!: SearchPresetType[];
+
+  /** ID of the currently active search preset (null = none selected). */
+  @Prop({ type: String, default: null })
+  activePresetId!: string | null;
+
+  /** User's preferred platform language: 'en' | 'es' (AUTH-04). */
+  @Prop({ type: String, default: 'en' })
+  languagePreference!: string;
+
+  /**
+   * Contact email — separate from the OAuth provider email.
+   * Editable by the user (AUTH-04).
+   */
+  @Prop({ type: String })
+  contactEmail?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

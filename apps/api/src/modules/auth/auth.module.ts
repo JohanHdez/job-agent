@@ -11,7 +11,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 @Module({
   imports: [
     UsersModule,
-    PassportModule,
+    PassportModule.register({ session: false }),
     JwtModule.registerAsync({
       useFactory: () => ({
         secret: process.env['JWT_SECRET'] ?? 'change-me-in-production',

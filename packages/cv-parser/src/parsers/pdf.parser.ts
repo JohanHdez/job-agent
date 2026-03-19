@@ -3,7 +3,7 @@ import path from 'path';
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import type { RawCvData } from '@job-agent/core';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/logger';
 
 /**
  * Reads a PDF file from disk and extracts raw text content.

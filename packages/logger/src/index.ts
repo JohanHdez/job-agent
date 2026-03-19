@@ -88,15 +88,38 @@ function jsonFormat(service: string): winston.Logform.Format {
 export function createLogger(serviceName: string): winston.Logger {
   const isProduction = process.env['NODE_ENV'] === 'production';
   const level = process.env['LOG_LEVEL'] ?? 'info';
+  const logDir = process.env['LOG_DIR'] ?? 'logs';
 
-  const format = winston.format.combine(
+  const consoleFormat = winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DDTHH:mm:ss.SSSZ' }),
     isProduction ? jsonFormat(serviceName) : devFormat(serviceName)
   );
 
+  // File transport always uses JSON so logs are machine-readable and greppable
+  const fileFormat = winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DDTHH:mm:ss.SSSZ' }),
+    jsonFormat(serviceName)
+  );
+
   return winston.createLogger({
     level,
-    format,
-    transports: [new winston.transports.Console()],
+    transports: [
+      new winston.transports.Console({ format: consoleFormat }),
+      // combined.log — all levels
+      new winston.transports.File({
+        filename: `${logDir}/combined.log`,
+        format: fileFormat,
+        maxsize: 10 * 1024 * 1024, // 10 MB then rotate
+        maxFiles: 5,
+      }),
+      // error.log — only error level, easiest to tail when debugging
+      new winston.transports.File({
+        filename: `${logDir}/error.log`,
+        level: 'error',
+        format: fileFormat,
+        maxsize: 10 * 1024 * 1024,
+        maxFiles: 5,
+      }),
+    ],
   });
 }

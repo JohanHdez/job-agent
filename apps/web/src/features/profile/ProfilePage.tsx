@@ -1,7 +1,8 @@
-import React, { useRef, useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../../lib/api';
 
-/* ── Types (mirrored from packages/core/src/types/cv.types.ts) ────────────── */
+/* ── Types ────────────────────────────────────────────────────────────────── */
 
 type SeniorityLevel = 'Junior' | 'Mid' | 'Senior' | 'Lead' | 'Principal' | 'Executive';
 type LanguageLevel = 'Native' | 'Fluent' | 'Advanced' | 'Intermediate' | 'Basic';
@@ -45,21 +46,18 @@ interface ProfessionalProfile {
 }
 
 interface ProfileApiResponse {
-  hasProfile: boolean;
-  profile?: ProfessionalProfile;
+  profile: ProfessionalProfile | null;
+  isComplete: boolean;
+  missingFields: string[];
 }
 
 interface UploadApiResponse {
-  success: boolean;
-  message: string;
-  fileName: string;
-  sizeBytes: number;
   profile: ProfessionalProfile;
+  isComplete: boolean;
+  missingFields: string[];
 }
 
 /* ── Constants ────────────────────────────────────────────────────────────── */
-
-const API_BASE_URL = 'http://localhost:3000';
 
 const SENIORITY_COLORS: Record<SeniorityLevel, { bg: string; text: string; border: string }> = {
   Junior:    { bg: 'rgba(34,197,94,0.1)',   text: '#4ade80',  border: 'rgba(34,197,94,0.25)'   },
@@ -68,6 +66,19 @@ const SENIORITY_COLORS: Record<SeniorityLevel, { bg: string; text: string; borde
   Lead:      { bg: 'rgba(168,85,247,0.1)',   text: '#c084fc',  border: 'rgba(168,85,247,0.25)'   },
   Principal: { bg: 'rgba(245,158,11,0.1)',   text: '#fbbf24',  border: 'rgba(245,158,11,0.25)'   },
   Executive: { bg: 'rgba(239,68,68,0.1)',    text: '#f87171',  border: 'rgba(239,68,68,0.25)'    },
+};
+
+const baseInput: React.CSSProperties = {
+  background: '#12121a',
+  border: '1px solid #2a2a38',
+  borderRadius: 8,
+  color: '#e2e2e8',
+  fontSize: 14,
+  outline: 'none',
+  width: '100%',
+  boxSizing: 'border-box',
+  fontFamily: 'Inter, system-ui, sans-serif',
+  padding: '10px 12px',
 };
 
 /* ── SVG Icons ────────────────────────────────────────────────────────────── */
@@ -145,6 +156,15 @@ const IconLoader: React.FC = () => (
   </svg>
 );
 
+/** Alert triangle icon for the incomplete profile banner */
+const IconAlertTriangle: React.FC = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+    <path d="M12 9v4" />
+    <path d="M12 17h.01" />
+  </svg>
+);
+
 /* ── Helper sub-components ────────────────────────────────────────────────── */
 
 interface ChipProps {
@@ -198,6 +218,58 @@ const SectionCard: React.FC<SectionCardProps> = ({ title, icon, children }) => (
   </div>
 );
 
+/* ── Incomplete profile banner ────────────────────────────────────────────── */
+
+interface IncompleteBannerProps {
+  missingFields: string[];
+}
+
+const IncompleteBanner: React.FC<IncompleteBannerProps> = ({ missingFields }) => {
+  const navigate = useNavigate();
+
+  if (missingFields.length === 0) return null;
+
+  return (
+    <div
+      role="alert"
+      style={{
+        backgroundColor: 'rgba(245,158,11,0.08)',
+        border: '1px solid rgba(245,158,11,0.25)',
+        borderRadius: 12,
+        padding: 16,
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 10,
+        marginBottom: 24,
+      }}
+    >
+      <span style={{ flexShrink: 0, marginTop: 1 }}>
+        <IconAlertTriangle />
+      </span>
+      <p style={{ fontSize: 14, color: '#fbbf24', margin: 0, lineHeight: 1.5 }}>
+        Your profile is missing: {missingFields.join(', ')}. Add them to improve job matching.{' '}
+        <button
+          type="button"
+          onClick={() => void navigate('/profile/setup')}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: '#6366f1',
+            fontSize: 14,
+            fontWeight: 700,
+            padding: 0,
+            fontFamily: 'Inter, system-ui, sans-serif',
+            textDecoration: 'underline',
+          }}
+        >
+          Complete profile
+        </button>
+      </p>
+    </div>
+  );
+};
+
 /* ── Upload dropzone ──────────────────────────────────────────────────────── */
 
 interface UploadState {
@@ -206,64 +278,66 @@ interface UploadState {
 }
 
 interface DropzoneProps {
-  onUploadSuccess: () => void;
+  onUploadSuccess: (response: UploadApiResponse) => void;
 }
 
 const CvDropzone: React.FC<DropzoneProps> = ({ onUploadSuccess }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>({ status: 'idle', message: '' });
-  const queryClient = useQueryClient();
+  const [isUploading, setIsUploading] = useState(false);
 
-  const uploadMutation = useMutation<UploadApiResponse, Error, File>({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('cv', file);
-      const res = await fetch(`${API_BASE_URL}/api/cv/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) {
-        const errorBody = await res.json().catch(() => ({ message: 'Upload failed' })) as { message?: string };
-        throw new Error(errorBody.message ?? `HTTP ${res.status}`);
+  const handleFile = useCallback(
+    async (file: File) => {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (ext !== 'pdf' && ext !== 'docx') {
+        setUploadState({
+          status: 'error',
+          message: 'Upload failed. Check the file is a PDF under 10 MB and try again.',
+        });
+        return;
       }
-      return res.json() as Promise<UploadApiResponse>;
+      setUploadState({ status: 'uploading', message: 'Uploading…' });
+      setIsUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append('cv', file);
+        const res = await api.post<UploadApiResponse>('/users/profile/cv', formData);
+        setUploadState({ status: 'success', message: 'CV uploaded and parsed successfully!' });
+        onUploadSuccess(res.data);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Upload failed.';
+        setUploadState({
+          status: 'error',
+          message: 'Upload failed. Check the file is a PDF under 10 MB and try again.',
+        });
+        // Log for debugging without console.log
+        void msg;
+      } finally {
+        setIsUploading(false);
+      }
     },
-    onSuccess: () => {
-      setUploadState({ status: 'success', message: 'CV uploaded and parsed successfully!' });
-      void queryClient.invalidateQueries({ queryKey: ['profile'] });
-      onUploadSuccess();
+    [onUploadSuccess]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const file = e.dataTransfer.files[0];
+      if (file) void handleFile(file);
     },
-    onError: (err: Error) => {
-      setUploadState({ status: 'error', message: err.message });
+    [handleFile]
+  );
+
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) void handleFile(file);
+      e.target.value = '';
     },
-  });
-
-  const handleFile = useCallback((file: File) => {
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext !== 'pdf' && ext !== 'docx') {
-      setUploadState({ status: 'error', message: 'Only PDF and DOCX files are accepted.' });
-      return;
-    }
-    setUploadState({ status: 'uploading', message: 'Uploading and parsing your CV…' });
-    uploadMutation.mutate(file);
-  }, [uploadMutation]);
-
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  }, [handleFile]);
-
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
-    // Reset so the same file can be re-uploaded
-    e.target.value = '';
-  }, [handleFile]);
-
-  const isUploading = uploadState.status === 'uploading';
+    [handleFile]
+  );
 
   const borderColor = isDragging
     ? '#6366f1'
@@ -280,7 +354,12 @@ const CvDropzone: React.FC<DropzoneProps> = ({ onUploadSuccess }) => {
         tabIndex={0}
         aria-label="Upload CV"
         onClick={() => !isUploading && fileInputRef.current?.click()}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); !isUploading && fileInputRef.current?.click(); } }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            !isUploading && fileInputRef.current?.click();
+          }
+        }}
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
@@ -315,9 +394,7 @@ const CvDropzone: React.FC<DropzoneProps> = ({ onUploadSuccess }) => {
         <p style={{ fontSize: '14px', fontWeight: 500, color: '#e2e2e8', margin: '0 0 6px' }}>
           {isUploading ? 'Uploading…' : 'Drop your PDF here or click to upload'}
         </p>
-        <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
-          PDF or DOCX · max 10 MB
-        </p>
+        <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>PDF or DOCX · max 10 MB</p>
       </div>
 
       <input
@@ -346,8 +423,8 @@ const CvDropzone: React.FC<DropzoneProps> = ({ onUploadSuccess }) => {
               : { backgroundColor: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', color: '#a5b4fc' }),
           }}
         >
-          {uploadState.status === 'success' && <IconCheck />}
-          {uploadState.status === 'error'   && <IconAlertCircle />}
+          {uploadState.status === 'success'   && <IconCheck />}
+          {uploadState.status === 'error'     && <IconAlertCircle />}
           {uploadState.status === 'uploading' && <IconLoader />}
           {uploadState.message}
         </div>
@@ -356,7 +433,7 @@ const CvDropzone: React.FC<DropzoneProps> = ({ onUploadSuccess }) => {
   );
 };
 
-/* ── Profile display ──────────────────────────────────────────────────────── */
+/* ── Profile display (view mode) ──────────────────────────────────────────── */
 
 interface ProfileDisplayProps {
   profile: ProfessionalProfile;
@@ -378,7 +455,6 @@ const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
-          {/* Avatar placeholder */}
           <div
             style={{
               width: '56px',
@@ -401,7 +477,6 @@ const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
               <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#f0f0f8', margin: 0 }}>
                 {profile.fullName}
               </h2>
-              {/* Seniority badge */}
               <span
                 style={{
                   padding: '2px 10px',
@@ -420,7 +495,6 @@ const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
 
             <p style={{ fontSize: '13px', color: '#9090a8', margin: '0 0 12px' }}>{profile.headline}</p>
 
-            {/* Meta row */}
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#6b7280' }}>
                 <IconMail /> {profile.email}
@@ -444,10 +518,7 @@ const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
         )}
       </div>
 
-      {/* Two-column grid for tech + languages */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-
-        {/* Tech Stack */}
         {profile.techStack.length > 0 && (
           <SectionCard title="Tech Stack" icon={<span style={{ fontSize: '16px' }}>{'</>'}</span>}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -458,7 +529,6 @@ const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
           </SectionCard>
         )}
 
-        {/* Languages */}
         {profile.languages.length > 0 && (
           <SectionCard title="Languages" icon={<span style={{ fontSize: '16px' }}>🌐</span>}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -470,7 +540,6 @@ const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
         )}
       </div>
 
-      {/* Skills */}
       {profile.skills.length > 0 && (
         <SectionCard title="Skills" icon={<span style={{ fontSize: '16px' }}>⚡</span>}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -481,7 +550,6 @@ const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
         </SectionCard>
       )}
 
-      {/* Experience */}
       {profile.experience.length > 0 && (
         <SectionCard title="Experience" icon={<IconBriefcase />}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -515,7 +583,6 @@ const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
         </SectionCard>
       )}
 
-      {/* Education */}
       {profile.education.length > 0 && (
         <SectionCard title="Education" icon={<IconGraduationCap />}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -532,6 +599,166 @@ const ProfileDisplay: React.FC<ProfileDisplayProps> = ({ profile }) => {
         </SectionCard>
       )}
     </div>
+  );
+};
+
+/* ── Edit form ────────────────────────────────────────────────────────────── */
+
+interface EditFormProps {
+  profile: ProfessionalProfile;
+  onSave: (updated: Partial<ProfessionalProfile>) => Promise<void>;
+  onDiscard: () => void;
+  isSaving: boolean;
+  saveSuccess: boolean;
+}
+
+const EditForm: React.FC<EditFormProps> = ({ profile, onSave, onDiscard, isSaving, saveSuccess }) => {
+  const [fullName, setFullName] = useState(profile.fullName);
+  const [headline, setHeadline] = useState(profile.headline);
+  const [location, setLocation] = useState(profile.location ?? '');
+  const [summary, setSummary] = useState(profile.summary);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await onSave({
+      fullName: fullName.trim() || undefined,
+      headline: headline.trim() || undefined,
+      location: location.trim() || undefined,
+      summary: summary.trim() || undefined,
+    });
+  };
+
+  return (
+    <form onSubmit={(e) => { void handleSubmit(e); }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <SectionCard title="Identity" icon={<IconUser />}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6 }} htmlFor="edit-fullName">
+              Full Name
+            </label>
+            <input
+              id="edit-fullName"
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              style={baseInput}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6 }} htmlFor="edit-headline">
+              Headline
+            </label>
+            <input
+              id="edit-headline"
+              type="text"
+              value={headline}
+              onChange={(e) => setHeadline(e.target.value)}
+              style={baseInput}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6 }} htmlFor="edit-location">
+              Location
+            </label>
+            <input
+              id="edit-location"
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              style={baseInput}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6 }} htmlFor="edit-summary">
+              Summary
+            </label>
+            <textarea
+              id="edit-summary"
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              rows={4}
+              style={{
+                ...baseInput,
+                height: 'auto',
+                resize: 'vertical',
+                padding: '10px 12px',
+              }}
+            />
+          </div>
+        </div>
+      </SectionCard>
+
+      {saveSuccess && (
+        <div
+          style={{
+            backgroundColor: 'rgba(34,197,94,0.08)',
+            border: '1px solid rgba(34,197,94,0.25)',
+            borderRadius: 8,
+            color: '#22c55e',
+            fontSize: 14,
+            padding: '12px 16px',
+          }}
+        >
+          Profile updated successfully.
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={isSaving}
+        style={{
+          width: '100%',
+          height: 44,
+          background: isSaving
+            ? 'rgba(99,102,241,0.5)'
+            : 'linear-gradient(135deg, #6366f1, #7c3aed)',
+          border: 'none',
+          borderRadius: 12,
+          color: '#fff',
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: isSaving ? 'not-allowed' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          fontFamily: 'Inter, system-ui, sans-serif',
+          transition: 'opacity 0.15s',
+        }}
+      >
+        {isSaving && (
+          <span
+            style={{
+              display: 'inline-block',
+              width: 16,
+              height: 16,
+              border: '2px solid rgba(255,255,255,0.3)',
+              borderTopColor: '#fff',
+              borderRadius: '50%',
+              animation: 'spin 0.7s linear infinite',
+            }}
+          />
+        )}
+        Save Changes
+      </button>
+
+      <button
+        type="button"
+        onClick={onDiscard}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: '#6b7280',
+          fontSize: 14,
+          textAlign: 'center',
+          padding: '4px 0',
+          fontFamily: 'Inter, system-ui, sans-serif',
+        }}
+      >
+        Discard Changes
+      </button>
+    </form>
   );
 };
 
@@ -576,22 +803,67 @@ const EmptyState: React.FC = () => (
 /* ── Main page ────────────────────────────────────────────────────────────── */
 
 /**
- * Profile page — lets users upload a CV and view their parsed professional profile.
+ * Profile page — view and edit professional profile, upload CV, see completeness alerts.
  */
 const ProfilePage: React.FC = () => {
   const [showDropzone, setShowDropzone] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [profile, setProfile] = useState<ProfessionalProfile | null>(null);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const { data, isLoading, isError } = useQuery<ProfileApiResponse>({
-    queryKey: ['profile'],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/cv/profile`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json() as Promise<ProfileApiResponse>;
+  // Fetch profile + completeness on mount
+  useEffect(() => {
+    setIsLoading(true);
+    api
+      .get<ProfileApiResponse>('/users/profile')
+      .then((res) => {
+        setProfile(res.data.profile);
+        setMissingFields(res.data.missingFields);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setIsError(true);
+        setIsLoading(false);
+      });
+  }, []);
+
+  const hasProfile = profile !== null;
+
+  const handleSaveEdit = useCallback(
+    async (updated: Partial<ProfessionalProfile>) => {
+      setIsSaving(true);
+      setSaveSuccess(false);
+      try {
+        const res = await api.patch<{ profile: ProfessionalProfile }>('/users/profile', updated);
+        setProfile(res.data.profile);
+        setSaveSuccess(true);
+        setIsEditing(false);
+        // Refresh missing fields
+        const refreshRes = await api.get<ProfileApiResponse>('/users/profile');
+        setMissingFields(refreshRes.data.missingFields);
+      } catch {
+        // leave editing mode open so user can retry
+      } finally {
+        setIsSaving(false);
+      }
     },
-    retry: false,
-  });
+    []
+  );
 
-  const hasProfile = data?.hasProfile === true && data.profile !== undefined;
+  const handleCvUploadSuccess = useCallback((response: UploadApiResponse) => {
+    setProfile(response.profile);
+    setMissingFields(response.missingFields);
+    setShowDropzone(false);
+  }, []);
+
+  const handleDiscard = useCallback(() => {
+    setIsEditing(false);
+    setSaveSuccess(false);
+  }, []);
 
   return (
     <div
@@ -613,7 +885,6 @@ const ProfilePage: React.FC = () => {
         }}
       />
 
-      {/* Spin keyframes injected inline */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '800px', margin: '0 auto', padding: '40px 24px 80px' }}>
@@ -646,35 +917,82 @@ const ProfilePage: React.FC = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => setShowDropzone((v) => !v)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '9px 18px',
-              borderRadius: '10px',
-              fontSize: '13px',
-              fontWeight: 600,
-              border: 'none',
-              cursor: 'pointer',
-              background: 'linear-gradient(135deg, #6366f1, #7c3aed)',
-              color: '#fff',
-              boxShadow: '0 0 0 1px rgba(99,102,241,0.4), 0 4px 16px rgba(99,102,241,0.2)',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 0 0 1px rgba(99,102,241,0.6), 0 6px 24px rgba(99,102,241,0.3)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 0 0 1px rgba(99,102,241,0.4), 0 4px 16px rgba(99,102,241,0.2)'; }}
-          >
-            <IconUpload />
-            Import CV
-          </button>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {/* Edit Profile / Discard toggle */}
+            {hasProfile && !isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '9px 18px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  border: '1px solid #2a2a38',
+                  cursor: 'pointer',
+                  background: '#1a1a24',
+                  color: '#e2e2e8',
+                  transition: 'all 0.15s',
+                }}
+              >
+                Edit Profile
+              </button>
+            )}
+
+            {hasProfile && isEditing && (
+              <button
+                type="button"
+                onClick={handleDiscard}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#6b7280',
+                  fontSize: '13px',
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  padding: '9px 0',
+                }}
+              >
+                Discard Changes
+              </button>
+            )}
+
+            {/* Import CV button */}
+            <button
+              onClick={() => setShowDropzone((v) => !v)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 18px',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                background: 'linear-gradient(135deg, #6366f1, #7c3aed)',
+                color: '#fff',
+                boxShadow: '0 0 0 1px rgba(99,102,241,0.4), 0 4px 16px rgba(99,102,241,0.2)',
+                transition: 'all 0.15s',
+              }}
+            >
+              <IconUpload />
+              Import CV
+            </button>
+          </div>
         </div>
+
+        {/* ── Incomplete profile banner ── */}
+        {!isLoading && missingFields.length > 0 && (
+          <IncompleteBanner missingFields={missingFields} />
+        )}
 
         {/* ── Upload dropzone (toggled) ── */}
         {showDropzone && (
           <div style={{ marginBottom: '32px' }}>
-            <CvDropzone onUploadSuccess={() => setShowDropzone(false)} />
+            <CvDropzone onUploadSuccess={handleCvUploadSuccess} />
           </div>
         )}
 
@@ -702,13 +1020,23 @@ const ProfilePage: React.FC = () => {
             }}
           >
             <IconAlertCircle />
-            Could not connect to the API. Make sure the server is running on port 3000.
+            Could not connect to the API. Make sure the server is running on port 3001.
           </div>
         )}
 
         {!isLoading && !isError && (
-          hasProfile && data?.profile
-            ? <ProfileDisplay profile={data.profile} />
+          hasProfile && profile
+            ? isEditing
+              ? (
+                <EditForm
+                  profile={profile}
+                  onSave={handleSaveEdit}
+                  onDiscard={handleDiscard}
+                  isSaving={isSaving}
+                  saveSuccess={saveSuccess}
+                />
+              )
+              : <ProfileDisplay profile={profile} />
             : !showDropzone && <EmptyState />
         )}
       </div>

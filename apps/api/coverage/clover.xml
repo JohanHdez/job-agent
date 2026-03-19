@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1773360790856" clover="3.2.0">
+  <project timestamp="1773360790857" name="All files">
+    <metrics statements="24" coveredstatements="24" conditionals="3" coveredconditionals="3" methods="6" coveredmethods="6" elements="33" coveredelements="33" complexity="0" loc="24" ncloc="24" packages="3" files="3" classes="3"/>
+    <package name="common.decorators">
+      <metrics statements="4" coveredstatements="4" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+      <file name="public.decorator.ts" path="C:\Users\1234\OneDrive\Escritorio\claude\job-agent\apps\api\src\common\decorators\public.decorator.ts">
+        <metrics statements="4" coveredstatements="4" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+        <line num="1" count="2" type="stmt"/>
+        <line num="4" count="2" type="stmt"/>
+        <line num="15" count="2" type="stmt"/>
+        <line num="16" count="1" type="stmt"/>
+      </file>
+    </package>
+    <package name="common.guards">
+      <metrics statements="10" coveredstatements="10" conditionals="1" coveredconditionals="1" methods="2" coveredmethods="2"/>
+      <file name="jwt-auth.guard.ts" path="C:\Users\1234\OneDrive\Escritorio\claude\job-agent\apps\api\src\common\guards\jwt-auth.guard.ts">
+        <metrics statements="10" coveredstatements="10" conditionals="1" coveredconditionals="1" methods="2" coveredmethods="2"/>
+        <line num="1" count="1" type="stmt"/>
+        <line num="3" count="1" type="stmt"/>
+        <line num="4" count="1" type="stmt"/>
+        <line num="5" count="1" type="stmt"/>
+        <line num="16" count="1" type="stmt"/>
+        <line num="17" count="3" type="stmt"/>
+        <line num="18" count="3" type="stmt"/>
+        <line num="26" count="3" type="stmt"/>
+        <line num="31" count="3" type="cond" truecount="1" falsecount="0"/>
+        <line num="33" count="2" type="stmt"/>
+      </file>
+    </package>
+    <package name="modules.health">
+      <metrics statements="10" coveredstatements="10" conditionals="2" coveredconditionals="2" methods="3" coveredmethods="3"/>
+      <file name="health.controller.ts" path="C:\Users\1234\OneDrive\Escritorio\claude\job-agent\apps\api\src\modules\health\health.controller.ts">
+        <metrics statements="10" coveredstatements="10" conditionals="2" coveredconditionals="2" methods="3" coveredmethods="3"/>
+        <line num="1" count="1" type="stmt"/>
+        <line num="2" count="1" type="stmt"/>
+        <line num="3" count="1" type="stmt"/>
+        <line num="13" count="1" type="stmt"/>
+        <line num="15" count="5" type="stmt"/>
+        <line num="16" count="5" type="stmt"/>
+        <line num="30" count="1" type="stmt"/>
+        <line num="31" count="5" type="stmt"/>
+        <line num="32" count="1" type="stmt"/>
+        <line num="35" count="4" type="stmt"/>
+      </file>
+    </package>
+  </project>
+</coverage>

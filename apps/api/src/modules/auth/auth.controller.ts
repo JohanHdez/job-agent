@@ -16,20 +16,38 @@ import { LinkedInAuthGuard } from './guards/linkedin-auth.guard.js';
 import { GoogleAuthGuard } from './guards/google-auth.guard.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { UserDocument } from '../users/schemas/user.schema.js';
-
-interface RefreshBody {
-  refreshToken?: string;
-}
+import { ExchangeCodeDto } from './dto/exchange-code.dto.js';
+import { Public } from '../../common/decorators/public.decorator.js';
 
 interface AuthenticatedRequest extends Request {
   user: UserDocument;
 }
 
-const FRONTEND_URL = process.env['FRONTEND_URL'] ?? 'http://localhost:3000';
+/** Resolved at request-time so ConfigModule has already populated process.env */
+function frontendUrl(): string {
+  return process.env['FRONTEND_URL'] ?? 'http://localhost:5173';
+}
+
+/** Cookie options for the refresh token */
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env['NODE_ENV'] === 'production',
+  // SameSite=Strict blocks cookies on cross-origin XHR (localhost:5173 → localhost:3001).
+  // Use 'lax' in development so the browser sends the cookie on same-site API calls.
+  sameSite: (process.env['NODE_ENV'] === 'production' ? 'strict' : 'lax') as 'strict' | 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+  path: '/auth/refresh',
+};
 
 /**
  * Auth controller — handles all OAuth flows and JWT token management.
- * All /auth/* routes are public (excluded from global JWT guard).
+ *
+ * Flow:
+ *  1. Browser hits /auth/linkedin or /auth/google → redirects to provider
+ *  2. Provider redirects to callback → stores tokens in Redis as one-time code
+ *  3. Browser follows redirect to /auth/callback?code=<uuid>
+ *  4. Frontend POSTs code to /auth/exchange → receives accessToken in body + httpOnly cookie
+ *  5. Frontend uses accessToken for API calls; refresh via /auth/refresh (cookie-based)
  */
 @Controller('auth')
 export class AuthController {
@@ -42,6 +60,7 @@ export class AuthController {
    * Redirects the browser to LinkedIn's OAuth consent page.
    */
   @Get('linkedin')
+  @Public()
   @UseGuards(LinkedInAuthGuard)
   linkedinLogin(): void {
     // Passport redirects — no body needed
@@ -50,9 +69,10 @@ export class AuthController {
   /**
    * GET /auth/linkedin/callback
    * LinkedIn redirects here after the user grants permission.
-   * Issues JWT tokens and redirects to the frontend.
+   * Stores tokens in Redis and redirects with a one-time code (no tokens in URL).
    */
   @Get('linkedin/callback')
+  @Public()
   @UseGuards(LinkedInAuthGuard)
   async linkedinCallback(
     @Req() req: AuthenticatedRequest,
@@ -60,14 +80,10 @@ export class AuthController {
   ): Promise<void> {
     try {
       const tokens = await this.authService.issueTokens(req.user);
-      const params = new URLSearchParams({
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        expiresIn: String(tokens.expiresIn),
-      });
-      res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
+      const code = await this.authService.storeAuthCode(tokens);
+      res.redirect(`${frontendUrl()}/auth/callback?code=${code}`);
     } catch {
-      res.redirect(`${FRONTEND_URL}/login?error=linkedin_auth_failed`);
+      res.redirect(`${frontendUrl()}/login?error=linkedin_auth_failed`);
     }
   }
 
@@ -78,6 +94,7 @@ export class AuthController {
    * Redirects the browser to Google's OAuth consent page.
    */
   @Get('google')
+  @Public()
   @UseGuards(GoogleAuthGuard)
   googleLogin(): void {
     // Passport redirects — no body needed
@@ -86,8 +103,10 @@ export class AuthController {
   /**
    * GET /auth/google/callback
    * Google redirects here after the user grants permission.
+   * Stores tokens in Redis and redirects with a one-time code (no tokens in URL).
    */
   @Get('google/callback')
+  @Public()
   @UseGuards(GoogleAuthGuard)
   async googleCallback(
     @Req() req: AuthenticatedRequest,
@@ -95,36 +114,65 @@ export class AuthController {
   ): Promise<void> {
     try {
       const tokens = await this.authService.issueTokens(req.user);
-      const params = new URLSearchParams({
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        expiresIn: String(tokens.expiresIn),
-      });
-      res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
+      const code = await this.authService.storeAuthCode(tokens);
+      res.redirect(`${frontendUrl()}/auth/callback?code=${code}`);
     } catch {
-      res.redirect(`${FRONTEND_URL}/login?error=google_auth_failed`);
+      res.redirect(`${frontendUrl()}/login?error=google_auth_failed`);
     }
+  }
+
+  // ── Code-exchange ──────────────────────────────────────────────────────────
+
+  /**
+   * POST /auth/exchange
+   * Exchanges a one-time auth code for an access token.
+   * Sets the refresh token as an httpOnly Secure SameSite=Strict cookie.
+   *
+   * @param body - { code: UUID v4 } from the OAuth callback redirect
+   * @returns { accessToken: string; expiresIn: number }
+   */
+  @Post('exchange')
+  @HttpCode(200)
+  @Public()
+  async exchange(
+    @Body() body: ExchangeCodeDto,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<{ accessToken: string; expiresIn: number }> {
+    const tokens = await this.authService.exchangeCode(body.code);
+    res.cookie('refresh_token', tokens.refreshToken, REFRESH_COOKIE_OPTIONS);
+    return { accessToken: tokens.accessToken, expiresIn: tokens.expiresIn };
   }
 
   // ── JWT token management ───────────────────────────────────────────────────
 
   /**
    * POST /auth/refresh
-   * Exchanges a valid refresh token for a new access + refresh token pair.
-   * The old refresh token is revoked (rotation).
+   * Reads the refresh token from the httpOnly cookie and issues a new token pair.
+   * Sets a new refresh token cookie (rotation).
+   *
+   * @throws UnauthorizedException if the cookie is absent or the token is invalid.
    */
   @Post('refresh')
   @HttpCode(200)
-  async refresh(@Body() body: RefreshBody) {
-    if (!body.refreshToken) {
-      throw new UnauthorizedException('refreshToken is required');
+  @Public()
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<{ accessToken: string; expiresIn: number }> {
+    const cookies = req.cookies as Record<string, string | undefined>;
+    const refreshToken = cookies['refresh_token'];
+    if (!refreshToken) {
+      throw new UnauthorizedException('No refresh token cookie');
     }
-    return this.authService.refreshTokens(body.refreshToken);
+    const tokens = await this.authService.refreshTokens(refreshToken);
+    // Rotate the refresh token cookie
+    res.cookie('refresh_token', tokens.refreshToken, REFRESH_COOKIE_OPTIONS);
+    return { accessToken: tokens.accessToken, expiresIn: tokens.expiresIn };
   }
 
   /**
    * POST /auth/logout
-   * Revokes the provided refresh token.
+   * Revokes the refresh token from the httpOnly cookie.
    * Requires a valid JWT access token in the Authorization header.
    */
   @Post('logout')
@@ -132,14 +180,17 @@ export class AuthController {
   @HttpCode(200)
   async logout(
     @Req() req: AuthenticatedRequest,
-    @Body() body: RefreshBody
+    @Res({ passthrough: true }) res: Response
   ) {
-    if (body.refreshToken) {
+    const cookies = req.cookies as Record<string, string | undefined>;
+    const refreshToken = cookies['refresh_token'];
+    if (refreshToken) {
       await this.authService.revokeToken(
         req.user._id instanceof Types.ObjectId ? req.user._id.toHexString() : String(req.user._id),
-        body.refreshToken
+        refreshToken
       );
     }
+    res.clearCookie('refresh_token', { path: '/auth/refresh' });
     return { success: true, message: 'Logged out successfully' };
   }
 

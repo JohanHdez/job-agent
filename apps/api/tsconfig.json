@@ -13,7 +13,9 @@
     "outDir": "./dist",
     "rootDir": "../../",
     "paths": {
-      "@job-agent/logger": ["../../packages/logger/src/index.ts"]
+      "@job-agent/logger": ["../../packages/logger/src/index.ts"],
+      "@job-agent/core": ["../../packages/core/src/index.ts"],
+      "@job-agent/cv-parser": ["../../packages/cv-parser/src/index.ts"]
     }
   },
   "include": ["src/**/*"],
