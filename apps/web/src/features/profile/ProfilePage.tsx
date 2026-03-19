@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
+import SmtpConfigSection from './SmtpConfigSection';
 
 /* ── Types ────────────────────────────────────────────────────────────────── */
 
@@ -1038,6 +1039,15 @@ const ProfilePage: React.FC = () => {
               )
               : <ProfileDisplay profile={profile} />
             : !showDropzone && <EmptyState />
+        )}
+
+        {/* ── Email Configuration section ── */}
+        {!isLoading && !isError && (
+          <div style={{ marginTop: 32 }}>
+            {/* Visual separator */}
+            <div style={{ borderTop: '1px solid #1e1e2e', marginBottom: 32 }} />
+            <SmtpConfigSection />
+          </div>
         )}
       </div>
     </div>

@@ -19,17 +19,17 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       clientID: process.env['GOOGLE_CLIENT_ID'] ?? '',
       clientSecret: process.env['GOOGLE_CLIENT_SECRET'] ?? '',
       callbackURL: process.env['GOOGLE_CALLBACK_URL'] ?? 'http://localhost:3001/auth/google/callback',
-      scope: ['openid', 'profile', 'email'],
+      scope: ['openid', 'profile', 'email', 'https://www.googleapis.com/auth/gmail.send'],
       state: false,
     });
   }
 
   /**
    * Called after Google redirects back with a valid access token.
-   * Links accounts when the same email exists from a LinkedIn registration.
+   * Stores the access token encrypted so EmailSenderService can use Gmail API.
    */
   async validate(
-    _accessToken: string,
+    accessToken: string,
     _refreshToken: string,
     profile: Profile
   ): Promise<UserDocument> {
@@ -40,6 +40,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       googleId: profile.id,
       email,
       name: profile.displayName,
+      accessToken,
       ...(photo ? { photo } : {}),
     });
   }

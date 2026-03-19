@@ -293,11 +293,10 @@ describe('UsersService', () => {
 
         const promise = service.importCvProfile('user-a-id', Buffer.from('pdf'));
 
-        // Flush microtasks then advance timers past the 7-second threshold
-        await Promise.resolve();
-        jest.advanceTimersByTime(8000);
-
-        await expect(promise).rejects.toThrow(RequestTimeoutException);
+        // Register catch handler BEFORE advancing timers to prevent unhandled rejection race
+        const assertion = expect(promise).rejects.toThrow(RequestTimeoutException);
+        await jest.advanceTimersByTimeAsync(8000);
+        await assertion;
 
         jest.useRealTimers();
       },
@@ -425,6 +424,148 @@ describe('UsersService', () => {
         { new: true }
       );
       expect(result).toEqual(updatedUser);
+    });
+  });
+
+  // ── SMTP Configuration (APPLY-02) ──────────────────────────────────────────
+
+  const stubSmtpDto = {
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    user: 'user@gmail.com',
+    password: 'plaintext-password',
+    fromName: 'User A',
+    fromEmail: 'user@gmail.com',
+  };
+
+  describe('saveSmtpConfig', () => {
+    it('encrypts password via encryptToken before storing', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { encryptToken } = require('../../common/crypto/token-cipher.js') as {
+        encryptToken: jest.Mock;
+      };
+      encryptToken.mockReturnValue('encrypted-smtp-password');
+      modelMock.findById.mockReturnValue({ exec: makeExec(userA) });
+      modelMock.updateOne.mockReturnValue({ exec: makeExec({ modifiedCount: 1 }) });
+
+      await service.saveSmtpConfig('user-a-id', stubSmtpDto);
+
+      expect(encryptToken).toHaveBeenCalledWith('plaintext-password');
+    });
+
+    it('stores all 7 SMTP fields with encrypted password', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { encryptToken } = require('../../common/crypto/token-cipher.js') as {
+        encryptToken: jest.Mock;
+      };
+      encryptToken.mockReturnValue('encrypted-smtp-password');
+      modelMock.findById.mockReturnValue({ exec: makeExec(userA) });
+
+      const capturedUpdate: Record<string, unknown> = {};
+      modelMock.updateOne.mockImplementation(
+        (_filter: unknown, update: { $set: Record<string, unknown> }) => {
+          Object.assign(capturedUpdate, update.$set);
+          return { exec: makeExec({ modifiedCount: 1 }) };
+        }
+      );
+
+      await service.saveSmtpConfig('user-a-id', stubSmtpDto);
+
+      const stored = capturedUpdate['smtpConfig'] as Record<string, unknown>;
+      expect(stored).toMatchObject({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        user: 'user@gmail.com',
+        password: 'encrypted-smtp-password',
+        fromName: 'User A',
+        fromEmail: 'user@gmail.com',
+      });
+    });
+
+    it('returns { saved: true } on success', async () => {
+      modelMock.findById.mockReturnValue({ exec: makeExec(userA) });
+      modelMock.updateOne.mockReturnValue({ exec: makeExec({ modifiedCount: 1 }) });
+
+      const result = await service.saveSmtpConfig('user-a-id', stubSmtpDto);
+      expect(result).toEqual({ saved: true });
+    });
+
+    it('pre-fills fromEmail from Google account email when user has googleId and no fromEmail provided', async () => {
+      const googleUser = { ...userA, googleId: 'g-123', email: 'google@gmail.com' };
+      modelMock.findById.mockReturnValue({ exec: makeExec(googleUser) });
+
+      const capturedUpdate: Record<string, unknown> = {};
+      modelMock.updateOne.mockImplementation(
+        (_filter: unknown, update: { $set: Record<string, unknown> }) => {
+          Object.assign(capturedUpdate, update.$set);
+          return { exec: makeExec({ modifiedCount: 1 }) };
+        }
+      );
+
+      await service.saveSmtpConfig('user-a-id', { ...stubSmtpDto, fromEmail: '' });
+
+      const stored = capturedUpdate['smtpConfig'] as Record<string, unknown>;
+      expect(stored['fromEmail']).toBe('google@gmail.com');
+    });
+
+    it('throws NotFoundException when user is not found', async () => {
+      modelMock.findById.mockReturnValue({ exec: makeExec(null) });
+      await expect(service.saveSmtpConfig('bad-id', stubSmtpDto)).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws BadRequestException when fromEmail is empty and user has no googleId', async () => {
+      modelMock.findById.mockReturnValue({ exec: makeExec({ ...userA, googleId: undefined }) });
+      await expect(
+        service.saveSmtpConfig('user-a-id', { ...stubSmtpDto, fromEmail: '' })
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getSmtpConfig', () => {
+    it('returns config with password masked as \'********\'', async () => {
+      const userWithSmtp = {
+        ...userA,
+        smtpConfig: { ...stubSmtpDto, password: 'encrypted-value' },
+      };
+      modelMock.findById.mockReturnValue({
+        select: jest.fn().mockReturnValue({ exec: makeExec(userWithSmtp) }),
+      });
+
+      const result = await service.getSmtpConfig('user-a-id');
+      expect(result).not.toBeNull();
+      expect(result!.password).toBe('********');
+    });
+
+    it('returns all other SMTP fields correctly', async () => {
+      const userWithSmtp = {
+        ...userA,
+        smtpConfig: { ...stubSmtpDto, password: 'encrypted-value' },
+      };
+      modelMock.findById.mockReturnValue({
+        select: jest.fn().mockReturnValue({ exec: makeExec(userWithSmtp) }),
+      });
+
+      const result = await service.getSmtpConfig('user-a-id');
+      expect(result).toMatchObject({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        user: 'user@gmail.com',
+        fromName: 'User A',
+        fromEmail: 'user@gmail.com',
+      });
+    });
+
+    it('returns null when user has no SMTP config', async () => {
+      const userWithNoSmtp = { ...userA, smtpConfig: null };
+      modelMock.findById.mockReturnValue({
+        select: jest.fn().mockReturnValue({ exec: makeExec(userWithNoSmtp) }),
+      });
+
+      const result = await service.getSmtpConfig('user-a-id');
+      expect(result).toBeNull();
     });
   });
 

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 02-auth-+-users plan 02-05
-last_updated: "2026-03-17T02:10:52.319Z"
+stopped_at: "Completed 05-application-automation plan 05-04 (checkpoint:human-verify pending)"
+last_updated: "2026-03-18T23:45:43.053Z"
 last_activity: 2026-03-12 — Plan 01-02 complete (NestJS infrastructure modules)
 progress:
   total_phases: 7
-  completed_phases: 1
-  total_plans: 9
-  completed_plans: 8
+  completed_phases: 4
+  total_plans: 19
+  completed_plans: 18
   percent: 75
 ---
 
@@ -73,6 +73,16 @@ Progress: [██░░░░░░░░] 10%
 | Phase 02-auth-+-users P03 | 9 | 2 tasks | 7 files |
 | Phase 02-auth-+-users PP04 | 6 | 2 tasks | 9 files |
 | Phase 02-auth-+-users PPP05 | 11 | 3 tasks | 7 files |
+| Phase 03-sessions-bullmq P01 | 9 | 2 tasks | 8 files |
+| Phase 03-sessions-bullmq P02 | 15 | 2 tasks | 6 files |
+| Phase 03-sessions-bullmq P03 | 10 | 3 tasks | 3 files |
+| Phase 04-pipeline-search-scoring PP01 | 5 | 2 tasks | 7 files |
+| Phase 04-pipeline-search-scoring P02 | 7 | 2 tasks | 9 files |
+| Phase 04-pipeline-search-scoring P03 | 21 | 2 tasks | 8 files |
+| Phase 05-application-automation P01 | 9 | 2 tasks | 11 files |
+| Phase 05-application-automation P02 | 21 | 2 tasks | 16 files |
+| Phase 05-application-automation P03 | 6 | 1 tasks | 5 files |
+| Phase 05-application-automation P04 | 8 | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -103,6 +113,33 @@ Recent decisions affecting current work:
 - [Phase 02-auth-+-users]: All API calls in apps/web must import from src/lib/api.ts — never raw fetch or new axios instances
 - [Phase 02-auth-+-users]: ProfilePage and ConfigPage migrated from raw fetch() to api.ts — all web API calls now use the shared authenticated axios instance
 - [Phase 02-auth-+-users]: PresetManagementSection manages its own state locally — separation of concerns without lifting preset state to ConfigPage parent
+- [Phase 03-sessions-bullmq]: REDIS_SUBSCRIBER is a separate ioredis connection — subscriber mode locks connection, cannot share with REDIS_CLIENT
+- [Phase 03-sessions-bullmq]: BullModule.forRootAsync at app root, BullModule.registerQueue per feature module (search-session queue in SessionsModule)
+- [Phase 03-sessions-bullmq]: StoredSessionEvent.data is Record<string,unknown> — schema-agnostic, no migration needed for new event fields; nextEventId is monotonic int counter on Session document
+- [Phase 03-sessions-bullmq]: SSE uses raw res.write not @Sse decorator — enables ownership validation before Content-Type header is set
+- [Phase 03-sessions-bullmq]: Session config passed as empty {} in createSession — Phase 4 wires real preset resolution
+- [Phase 03-sessions-bullmq]: child_process.fork chosen over BullMQ sandboxed processor — simpler path resolution for monorepo dist/ layout
+- [Phase 03-sessions-bullmq]: Worker has its own ioredis + mongoose connections — no shared state with NestJS process, ensures crash isolation
+- [Phase 03-sessions-bullmq]: mock-data.generator.ts is Phase 3 stub — Phase 4 replaces call site with real LinkedIn pipeline without touching worker architecture
+- [Phase 04-pipeline-search-scoring]: VacanciesModule exports MongooseModule so downstream modules inject InjectModel(Vacancy.name) without re-importing the schema
+- [Phase 04-pipeline-search-scoring]: ScoringAdapter.scoreBatch batches up to 5 jobs per call — callers are responsible for batching to stay within LLM token limits
+- [Phase 04-pipeline-search-scoring]: userId+company+title dedup index uses collation strength 2 (case-insensitive) to catch duplicate postings with different title casing
+- [Phase 04-pipeline-search-scoring]: createSession signature changed to (userId) only — service resolves SearchConfigSnapshotType internally from user's active preset, callers cannot inject arbitrary config
+- [Phase 04-pipeline-search-scoring]: VacanciesModule exports VacanciesService and MongooseModule — service for worker pipeline use in Plan 03, MongooseModule for direct model injection downstream
+- [Phase 04-pipeline-search-scoring]: AnyModel duck-type interface avoids Mongoose generic incompatibilities with exactOptionalPropertyTypes
+- [Phase 04-pipeline-search-scoring]: Pipeline emits missing_fields for incomplete vacancies, excluded_company for blocked companies - separate semantic reasons per plan
+- [Phase 04-pipeline-search-scoring]: JSearchAdapter maps job_publisher to PlatformId via case-insensitive PUBLISHER_TO_PLATFORM map, not hardcoded to linkedin
+- [Phase 05-application-automation]: LegacyApplicationStatus rename: job.types.ts ApplicationStatus renamed to LegacyApplicationStatus with local alias to avoid barrel collision with Phase 5 ApplicationStatus
+- [Phase 05-application-automation]: Email detection at persist time: detectRecipientEmail wired into VacanciesService.insertMany with idempotent guard
+- [Phase 05-application-automation]: apply_options access via Record cast: field not in Vacancy schema, accessed via type assertion in insertMany enrichment
+- [Phase 05-application-automation]: ClaudeEmailDraftAdapter registered via EMAIL_DRAFT_ADAPTER_TOKEN symbol — enables swapping without changing ApplicationsService
+- [Phase 05-application-automation]: VacanciesService augmentWithApplicationStatus uses single batch query for application status join — avoids N+1 on vacancy list
+- [Phase 05-application-automation]: smtpConfig sub-schema uses explicit typed fields (host: String, port: Number, etc.) not type: Object — stricter DB-level validation
+- [Phase 05-application-automation]: getSmtpConfigRaw is separate from getSmtpConfig — public API always masks password with '********', EmailSenderService uses internal raw method to get encrypted value
+- [Phase 05-application-automation]: Google OAuth fromEmail pre-fill in saveSmtpConfig: empty fromEmail + googleId present = auto-fill from user.email, avoiding redundant entry for Gmail users
+- [Phase 05-application-automation]: DashboardPage fetches vacancies with includeApplication=true to join application status in single batch request
+- [Phase 05-application-automation]: EmailDraftModal creates application on mount (POST /applications) and auto-calls review transition — modal opening is the trigger, no separate button needed
+- [Phase 05-application-automation]: ApplicationHistoryPage wrapper bg/minHeight removed — page renders inside AppLayout which provides the shell
 
 ### Pending Todos
 
@@ -117,6 +154,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T02:10:52.315Z
-Stopped at: Completed 02-auth-+-users plan 02-05
+Last session: 2026-03-18T23:45:34.628Z
+Stopped at: Completed 05-application-automation plan 05-04 (checkpoint:human-verify pending)
 Resume file: None

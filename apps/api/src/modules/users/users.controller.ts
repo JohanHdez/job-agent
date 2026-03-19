@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Delete,
   Body,
@@ -20,6 +21,8 @@ import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { CreatePresetDto } from './dto/create-preset.dto.js';
 import { UpdatePresetDto } from './dto/update-preset.dto.js';
+import { UpdateSmtpConfigDto } from './dto/update-smtp-config.dto.js';
+import type { AppConfig } from '@job-agent/core';
 import type { UserDocument } from './schemas/user.schema.js';
 import type { Request } from 'express';
 
@@ -106,13 +109,52 @@ export class UsersController {
     if (!file) {
       throw new BadRequestException('PDF file is required');
     }
-    const user = await this.usersService.importCvProfile(getUserId(req), file.buffer);
+    const userId = getUserId(req);
+    const user = await this.usersService.importCvProfile(userId, file.buffer);
     const missingFields = this.usersService.checkProfileCompleteness(user);
+
+    // Auto-populate search config from parsed profile (fire-and-forget — non-blocking)
+    if (user.profile) {
+      void this.usersService.seedSearchConfigFromProfile(userId, user.profile);
+    }
+
     return {
       profile: user.profile,
       isComplete: missingFields.length === 0,
       missingFields,
     };
+  }
+
+  /** GET /users/config — load persisted AppConfig (pre-populated from CV) */
+  @Get('config')
+  async getConfig(@Req() req: AuthenticatedRequest) {
+    const config = await this.usersService.getSearchConfig(getUserId(req));
+    return { config };
+  }
+
+  /** POST /users/config — save AppConfig */
+  @Post('config')
+  async saveConfig(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: AppConfig,
+  ) {
+    const saved = await this.usersService.saveSearchConfig(getUserId(req), body);
+    return { config: saved };
+  }
+
+  /** PUT /users/smtp-config — save SMTP configuration (APPLY-02) */
+  @Put('smtp-config')
+  async saveSmtpConfig(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: UpdateSmtpConfigDto
+  ) {
+    return this.usersService.saveSmtpConfig(getUserId(req), dto);
+  }
+
+  /** GET /users/smtp-config — get SMTP config with masked password */
+  @Get('smtp-config')
+  async getSmtpConfig(@Req() req: AuthenticatedRequest) {
+    return this.usersService.getSmtpConfig(getUserId(req));
   }
 
   /** GET /users/presets — list all search presets (SRCH-01) */

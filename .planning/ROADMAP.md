@@ -14,9 +14,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Foundation** - NestJS app scaffold, MongoDB + Redis connectivity, shared types audit, structured logging in DI, global auth guard
 - [ ] **Phase 2: Auth + Users** - LinkedIn OAuth, Google OAuth, JWT refresh, per-user profile (CV upload + LinkedIn import), search config presets
-- [ ] **Phase 3: Sessions + BullMQ** - POST /sessions endpoint, SSE with MongoDB replay, BullMQ worker process isolated from NestJS, stub pipeline validated end-to-end
-- [ ] **Phase 4: Pipeline — Search + Scoring** - CV parser in worker, multi-platform search, compatibility scoring 0-100, MongoDB deduplication, excluded companies filter, session limit enforcement
-- [ ] **Phase 5: Application Automation** - LinkedIn Easy Apply via worker, email apply via Claude API + SMTP, Redis rate limiter, CAPTCHA detection, application history with manual status
+- [x] **Phase 3: Sessions + BullMQ** - POST /sessions endpoint, SSE with MongoDB replay, BullMQ worker process isolated from NestJS, stub pipeline validated end-to-end (completed 2026-03-18)
+- [x] **Phase 4: Pipeline — Search + Scoring** - CV parser in worker, multi-platform search, compatibility scoring 0-100, MongoDB deduplication, excluded companies filter, session limit enforcement (completed 2026-03-18)
+- [x] **Phase 5: Application Automation** - LinkedIn Easy Apply via worker, email apply via Claude API + SMTP, Redis rate limiter, CAPTCHA detection, application history with manual status (completed 2026-03-18)
 - [ ] **Phase 6: React Frontend** - OAuth login page, dashboard with live SSE progress, search config form, job results with scores, application history with CSV export, profile editor
 - [ ] **Phase 7: Reports + Metrics** - Session reports (HTML/Markdown/PDF), emails log, aggregated metrics dashboard, CSV + PDF export
 
@@ -68,10 +68,15 @@ Plans:
   2. The browser EventSource receives progress events (job_found, application_made, session_complete) in real time without polling
   3. If the user refreshes the page mid-session, the SSE stream replays all missed events from the point of disconnect using Last-Event-ID
   4. A browser crash or OOM in the Playwright worker does not crash the NestJS API process — the API continues serving other requests
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Session event types (locked schema), Session Mongoose schema, Redis subscriber provider, BullMQ + SessionsModule registration
+- [ ] 03-02-PLAN.md — SessionsService (session CRUD, ring-buffer event append, Redis Pub/Sub subscribe), SessionsController (POST /sessions 202, GET SSE, DELETE cancel), unit tests
+- [ ] 03-03-PLAN.md — Standalone BullMQ worker process with mock data pipeline, Redis Pub/Sub publishing, MongoDB persistence, child_process.fork spawning from SessionsModule, end-to-end human verification
 
 ### Phase 4: Pipeline — Search + Scoring
-**Goal**: The BullMQ worker runs the full non-destructive pipeline: parse the user's CV, search LinkedIn Jobs + Indeed + Computrabajo with configured filters, score each vacancy 0-100, deduplicate against MongoDB history, and deliver a sorted job list to the user — all without touching LinkedIn's apply flow.
+**Goal**: The BullMQ worker runs the full non-destructive pipeline: resolve the user's active search preset, search jobs via JSearch REST API, score each vacancy 0-100 using a hybrid local + LLM engine, deduplicate against MongoDB history, enforce excluded companies filter, and deliver a sorted job list to the user via SSE events — all without touching any apply flow.
 **Depends on**: Phase 3
 **Requirements**: SRCH-03, AUTO-01, AUTO-02, AUTO-03, AUTO-04, HIST-04, APPLY-04, NF-02
 **Success Criteria** (what must be TRUE):
@@ -80,7 +85,12 @@ Plans:
   3. Vacancies with the same URL or (company + title) already seen by this user are automatically excluded from results — applying twice to the same job is not possible
   4. Companies in the user's excludedCompanies list do not appear in results; the excluded count is visible in the session view
   5. User can mark a vacancy as "Not interested" and it disappears from future search results, recorded with status=dismissed
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Define VacancyType, SearchConfigSnapshotType, JobSearchAdapter, ScoringAdapter interfaces; create Vacancy Mongoose schema with dedup indexes; register VacanciesModule
+- [ ] 04-02-PLAN.md — Wire preset resolution into POST /sessions, create VacanciesService + VacanciesController with dismiss endpoint and session vacancy list
+- [ ] 04-03-PLAN.md — Implement JSearch adapter, Claude scoring adapter, pipeline orchestrator; replace mock generator in worker with real pipeline
 
 ### Phase 5: Application Automation
 **Goal**: The agent applies to compatible jobs on the user's behalf: LinkedIn Easy Apply via the BullMQ worker with a Redis rate limiter and CAPTCHA detection, personalized email applications via Claude API with an approval modal, per-session application limits, and a full traceable application history with manual status tracking.
@@ -92,7 +102,13 @@ Plans:
   3. For an email-apply vacancy, the user sees a preview modal with the AI-generated email, can edit it, and approves or discards before any email is sent
   4. The agent stops after reaching maxApplicationsPerSession and notifies the user; the counter is visible during execution
   5. User can view a paginated history of all applications filterable by date, company, platform, and status; clicking an application shows the full JD, score, sent email, and status change timeline
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Define Phase 5 type contracts, extend Vacancy schema, create Application schema, email detection utility
+- [ ] 05-02-PLAN.md — ApplicationsModule: ClaudeEmailDraftAdapter, EmailSenderService, CRUD service, REST controller, AppModule registration
+- [ ] 05-03-PLAN.md — Extend User schema with smtpConfig, PUT/GET smtp-config endpoints, AES-256-GCM password encryption
+- [ ] 05-04-PLAN.md — Frontend: EmailDraftModal, ApplicationDetailDrawer, StatusUpdateMenu, ApplicationFilters, CsvExportButton, SmtpConfigSection, PendingReviewQueue, ApplicationHistoryPage upgrade
 
 ### Phase 6: React Frontend
 **Goal**: The full React 18 + Vite SaaS UI replaces the vanilla HTML configuration page: OAuth login, persistent sidebar navigation with avatar, dashboard with live session progress via SSE, search configuration form validated against AppConfigType, job results cards with score badges, application history with CSV export, and an editable profile page.
@@ -126,8 +142,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/4 | In Progress|  |
 | 2. Auth + Users | 4/5 | In Progress|  |
-| 3. Sessions + BullMQ | 0/TBD | Not started | - |
-| 4. Pipeline — Search + Scoring | 0/TBD | Not started | - |
-| 5. Application Automation | 0/TBD | Not started | - |
+| 3. Sessions + BullMQ | 2/3 | Complete    | 2026-03-18 |
+| 4. Pipeline — Search + Scoring | 3/3 | Complete   | 2026-03-18 |
+| 5. Application Automation | 4/4 | Complete   | 2026-03-18 |
 | 6. React Frontend | 0/TBD | Not started | - |
 | 7. Reports + Metrics | 0/TBD | Not started | - |

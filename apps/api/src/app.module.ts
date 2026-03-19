@@ -2,11 +2,15 @@ import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { BullModule } from '@nestjs/bullmq';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { LoggerModule } from './modules/logger/logger.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { RedisModule } from './common/redis/redis.module.js';
+import { SessionsModule } from './modules/sessions/sessions.module.js';
+import { VacanciesModule } from './modules/vacancies/vacancies.module.js';
+import { ApplicationsModule } from './modules/applications/applications.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
@@ -35,8 +39,16 @@ import { CorrelationMiddleware } from './common/middleware/correlation.middlewar
     LoggerModule,
     HealthModule,
     RedisModule,
+    BullModule.forRootAsync({
+      useFactory: () => ({
+        connection: { url: process.env['REDIS_URL'] ?? 'redis://localhost:6379' },
+      }),
+    }),
     UsersModule,
     AuthModule,
+    SessionsModule,
+    VacanciesModule,
+    ApplicationsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
