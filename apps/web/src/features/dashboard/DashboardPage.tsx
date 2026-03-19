@@ -1,10 +1,26 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import EmailDraftModal from '../applications/EmailDraftModal';
 import PendingReviewQueue from './PendingReviewQueue';
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
+
+type SessionStatus = 'queued' | 'running' | 'completed' | 'cancelled' | 'failed';
+
+interface SessionEvent {
+  id: number;
+  type: string;
+  data: Record<string, unknown>;
+  ts: string;
+}
+
+interface ActiveSession {
+  _id: string;
+  status: SessionStatus;
+  events: SessionEvent[];
+  createdAt: string;
+}
 
 type EmailDetectionMethod = 'apply_options' | 'jd_regex' | 'manual_required';
 
@@ -259,6 +275,66 @@ const VacancyCard: React.FC<VacancyCardProps> = ({ vacancy, onApplyByEmail }) =>
   );
 };
 
+/* ── SearchingBanner ────────────────────────────────────────────────────────── */
+
+const SearchingBanner: React.FC<{ session: ActiveSession; jobCount: number }> = ({ session, jobCount }) => {
+  const isQueued = session.status === 'queued';
+  const lastEvent = session.events[session.events.length - 1];
+  const lastMessage = lastEvent
+    ? (lastEvent.data['message'] as string | undefined) ?? lastEvent.type
+    : null;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        padding: '14px 20px',
+        borderRadius: 12,
+        backgroundColor: 'rgba(99,102,241,0.07)',
+        border: '1px solid rgba(99,102,241,0.25)',
+        marginBottom: 28,
+      }}
+    >
+      <div style={{ flexShrink: 0, color: '#818cf8', animation: 'spin 1.2s linear infinite', display: 'flex' }}>
+        <IconLoader />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 600, color: '#c7c8d4' }}>
+          {isQueued ? 'Agent queued…' : 'Agent searching for jobs…'}
+        </p>
+        {lastMessage && (
+          <p style={{ margin: 0, fontSize: 12, color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {lastMessage}
+          </p>
+        )}
+        {!lastMessage && !isQueued && (
+          <p style={{ margin: 0, fontSize: 12, color: '#6b7280' }}>
+            Scanning job boards and scoring matches…
+          </p>
+        )}
+      </div>
+      {jobCount > 0 && (
+        <span
+          style={{
+            flexShrink: 0,
+            fontSize: 12,
+            fontWeight: 700,
+            color: '#818cf8',
+            background: 'rgba(99,102,241,0.12)',
+            border: '1px solid rgba(99,102,241,0.2)',
+            borderRadius: 999,
+            padding: '3px 10px',
+          }}
+        >
+          {jobCount} found
+        </span>
+      )}
+    </div>
+  );
+};
+
 /* ── DashboardPage ──────────────────────────────────────────────────────────── */
 
 /**
@@ -267,6 +343,32 @@ const VacancyCard: React.FC<VacancyCardProps> = ({ vacancy, onApplyByEmail }) =>
  */
 const DashboardPage: React.FC = () => {
   const [selectedVacancy, setSelectedVacancy] = useState<Vacancy | null>(null);
+  const queryClient = useQueryClient();
+  const prevSessionStatusRef = useRef<SessionStatus | null>(null);
+
+  // Poll active session every 3s to show real-time progress
+  const { data: sessionData } = useQuery<{ session: ActiveSession | null }>({
+    queryKey: ['sessions', 'active'],
+    queryFn: async () => {
+      const res = await api.get<{ session: ActiveSession | null }>('/sessions/active');
+      return res.data;
+    },
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
+  });
+
+  const activeSession = sessionData?.session ?? null;
+  const isSessionRunning = activeSession !== null;
+
+  // When session transitions from active → done, refetch vacancies
+  useEffect(() => {
+    const prev = prevSessionStatusRef.current;
+    const curr = activeSession?.status ?? null;
+    if (prev !== null && (prev === 'running' || prev === 'queued') && curr === null) {
+      void queryClient.invalidateQueries({ queryKey: ['vacancies', 'dashboard'] });
+    }
+    prevSessionStatusRef.current = curr;
+  }, [activeSession, queryClient]);
 
   const { data, isLoading, isError, refetch } = useQuery<VacanciesApiResponse>({
     queryKey: ['vacancies', 'dashboard'],
@@ -277,6 +379,8 @@ const DashboardPage: React.FC = () => {
       return res.data;
     },
     refetchOnWindowFocus: false,
+    // Auto-refetch every 5s while a session is running to show new vacancies as they arrive
+    refetchInterval: isSessionRunning ? 5000 : false,
   });
 
   const vacancies = data?.data ?? [];
@@ -318,6 +422,11 @@ const DashboardPage: React.FC = () => {
             Browse scored vacancies and apply by email.
           </p>
         </div>
+
+        {/* Active session banner */}
+        {isSessionRunning && (
+          <SearchingBanner session={activeSession} jobCount={data?.total ?? 0} />
+        )}
 
         {/* Pending Review Queue */}
         {!isLoading && (
@@ -397,10 +506,12 @@ const DashboardPage: React.FC = () => {
                   <IconInbox />
                 </div>
                 <p style={{ fontSize: 15, fontWeight: 500, color: '#e2e2e8', margin: '0 0 8px' }}>
-                  No vacancies found yet
+                  {isSessionRunning ? 'Searching for jobs…' : 'No vacancies found yet'}
                 </p>
                 <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>
-                  Run the agent to search and score jobs. Vacancies will appear here.
+                  {isSessionRunning
+                    ? 'The agent is scanning job boards and scoring matches. Results will appear here automatically.'
+                    : 'Run the agent to search and score jobs. Vacancies will appear here.'}
                 </p>
               </div>
             ) : (

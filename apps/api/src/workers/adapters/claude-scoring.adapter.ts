@@ -46,22 +46,24 @@ export class ClaudeScoringAdapter implements ScoringAdapter {
   async scoreBatch(jobs: ScoringInput[], profile: ProfessionalProfile): Promise<ScoredJob[]> {
     if (jobs.length === 0) return [];
 
+    // Remove control characters that can cause API request failures
+    const sanitize = (s: string): string => s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ' ').trim();
+
     const profileSummary = [
-      `Role: ${profile.headline}`,
-      `Seniority: ${profile.seniority} (${profile.yearsOfExperience}y)`,
-      `Skills: ${profile.skills.slice(0, 15).join(', ')}`,
-      `Tech: ${profile.techStack.slice(0, 10).join(', ')}`,
-      `Languages: ${profile.languages.map((l) => l.name).join(', ')}`,
+      `Role: ${sanitize(profile.headline ?? '')}`,
+      `Seniority: ${profile.seniority ?? 'Mid'} (${profile.yearsOfExperience ?? 0}y)`,
+      `Skills: ${(profile.skills ?? []).slice(0, 10).map(sanitize).join(', ')}`,
+      `Tech: ${(profile.techStack ?? []).slice(0, 8).map(sanitize).join(', ')}`,
+      `Languages: ${(profile.languages ?? []).map((l) => sanitize(l.name ?? '')).join(', ')}`,
     ].join('\n');
 
     const jobDescriptions = jobs
       .map((j) => {
-        // Truncate description to 500 chars to minimise tokens
-        const desc =
-          j.description.length > 500
-            ? j.description.substring(0, 500) + '...'
-            : j.description;
-        return `[${j.index}] ${j.title} at ${j.company} (${j.location})\n${desc}`;
+        // Truncate description to 400 chars and sanitize
+        const desc = sanitize(
+          j.description.length > 400 ? j.description.substring(0, 400) + '...' : j.description
+        );
+        return `[${j.index}] ${sanitize(j.title)} at ${sanitize(j.company)} (${sanitize(j.location)})\n${desc}`;
       })
       .join('\n---\n');
 
@@ -79,7 +81,7 @@ Return JSON: [{"index":0,"score":75,"reason":"max 15 words"}]`;
       const startMs = Date.now();
 
       const response = await this.client.messages.create({
-        model: 'claude-sonnet-4-6-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1024,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -116,7 +118,14 @@ Return JSON: [{"index":0,"score":75,"reason":"max 15 words"}]`;
       }));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
+      // Log full error details for debugging
       process.stderr.write(chalk.red(`[scorer] Batch scoring failed: ${message}\n`));
+      if (err != null && typeof err === 'object') {
+        const apiErr = err as Record<string, unknown>;
+        if ('status' in apiErr) process.stderr.write(chalk.red(`[scorer] status: ${apiErr['status']}\n`));
+        if ('error' in apiErr) process.stderr.write(chalk.red(`[scorer] error body: ${JSON.stringify(apiErr['error'])}\n`));
+        process.stderr.write(chalk.red(`[scorer] prompt preview (first 300 chars): ${prompt.substring(0, 300)}\n`));
+      }
       // Graceful degradation: return 0 scores on error so pipeline continues
       return jobs.map((j) => ({ index: j.index, score: 0, reason: 'scoring_api_error' }));
     }

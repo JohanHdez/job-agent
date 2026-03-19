@@ -35,6 +35,29 @@ export class VacanciesController {
   constructor(private readonly vacanciesService: VacanciesService) {}
 
   /**
+   * GET /vacancies — list all vacancies for the authenticated user across all sessions.
+   *
+   * Returns up to 100 most recent vacancies sorted by createdAt descending.
+   * When ?includeApplication=true, each vacancy includes applicationStatus.
+   *
+   * IMPORTANT: This route MUST be declared before GET /vacancies/session/:sessionId
+   * to avoid NestJS routing conflicts.
+   *
+   * @returns Array of vacancy documents sorted by createdAt descending
+   */
+  @Get()
+  async findAll(
+    @Req() req: AuthenticatedRequest,
+    @Query('includeApplication') includeApplication?: string,
+  ) {
+    const userId = getUserId(req);
+    const items = await this.vacanciesService.findAll(userId, {
+      includeApplication: includeApplication === 'true',
+    });
+    return { data: items, total: items.length, page: 1, pageSize: items.length };
+  }
+
+  /**
    * GET /vacancies/session/:sessionId — list all vacancies for a session.
    *
    * Returns vacancies sorted by compatibilityScore descending.

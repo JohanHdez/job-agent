@@ -48,12 +48,12 @@ interface SearchPresetType {
 // ─── API helpers ─────────────────────────────────────────────────────────────
 
 async function fetchConfig(): Promise<AppConfig | null> {
-  const res = await api.get<{ config: AppConfig | null }>('/api/config');
+  const res = await api.get<{ config: AppConfig | null }>('/users/config');
   return res.data.config;
 }
 
 async function saveConfig(config: AppConfig): Promise<void> {
-  await api.post('/api/config', config);
+  await api.post('/users/config', config);
 }
 
 // ─── Default config ───────────────────────────────────────────────────────────
@@ -662,12 +662,23 @@ const ConfigPage: React.FC = () => {
     setBanner(null);
     setIsSaving(true);
     saveConfig(form)
+      .then(() => api.post<{ sessionId: string }>('/sessions', {}))
       .then(() => {
-        setBanner({ type: 'success', message: 'Configuration saved successfully.' });
-        setTimeout(() => setBanner(null), 4000);
+        navigate('/applications');
       })
-      .catch((err: Error) => {
-        setBanner({ type: 'error', message: err.message });
+      .catch((err: unknown) => {
+        // 409 = session already active → still navigate to dashboard
+        if (
+          err != null &&
+          typeof err === 'object' &&
+          'response' in err &&
+          (err as { response?: { status?: number } }).response?.status === 409
+        ) {
+          navigate('/applications');
+          return;
+        }
+        const message = err instanceof Error ? err.message : 'Failed to start session';
+        setBanner({ type: 'error', message });
       })
       .finally(() => {
         setIsSaving(false);

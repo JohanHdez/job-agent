@@ -61,6 +61,31 @@ export class VacanciesService {
   }
 
   /**
+   * Find all vacancies for the user across all sessions, sorted by createdAt descending.
+   * Enforces userId ownership (NF-08).
+   *
+   * Used by DashboardPage when no sessionId is available.
+   *
+   * @param userId - MongoDB ObjectId string of the requesting user
+   * @param options - Optional flags for data enrichment
+   * @returns Array of vacancy documents
+   */
+  async findAll(
+    userId: string,
+    options?: FindBySessionOptions
+  ): Promise<VacancyDocument[] | VacancyWithApplicationStatus[]> {
+    const vacancies = await this.vacancyModel
+      .find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .exec();
+
+    if (!options?.includeApplication) return vacancies;
+
+    return this.augmentWithApplicationStatus(vacancies, userId);
+  }
+
+  /**
    * Augments vacancies with applicationStatus from the applications collection.
    * Runs a single batch query to avoid N+1 queries.
    *

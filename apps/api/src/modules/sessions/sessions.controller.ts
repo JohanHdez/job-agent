@@ -69,6 +69,16 @@ export class SessionsController {
   }
 
   /**
+   * GET /sessions/active — returns the user's current active session (queued or running),
+   * or null if none is active. Used by the frontend to poll session progress.
+   */
+  @Get('active')
+  async getActive(@Req() req: AuthenticatedRequest) {
+    const userId = getUserId(req);
+    return this.sessionsService.getActiveSession(userId);
+  }
+
+  /**
    * GET /sessions/:id/events — SSE stream for real-time session progress.
    *
    * Protocol:

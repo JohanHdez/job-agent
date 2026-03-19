@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import { writeFile, unlink } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import type { ProfessionalProfile, SearchPresetType, SmtpConfigType } from '@job-agent/core';
+import type { AppConfig, ProfessionalProfile, SearchPresetType, SmtpConfigType } from '@job-agent/core';
 import { User, UserDocument } from './schemas/user.schema.js';
 import { encryptToken } from '../../common/crypto/token-cipher.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
@@ -28,6 +28,7 @@ export interface UpsertGoogleUserDto {
   email: string;
   name: string;
   photo?: string;
+  accessToken?: string;
 }
 
 /**
@@ -68,6 +69,8 @@ export class UsersService {
    * If a user with the same email already exists, links the Google identity.
    */
   async upsertFromGoogle(dto: UpsertGoogleUserDto): Promise<UserDocument> {
+    const encryptedToken = dto.accessToken ? encryptToken(dto.accessToken) : undefined;
+
     const user = await this.userModel.findOneAndUpdate(
       { $or: [{ googleId: dto.googleId }, { email: dto.email }] },
       {
@@ -76,6 +79,7 @@ export class UsersService {
           email: dto.email,
           name: dto.name,
           ...(dto.photo ? { photo: dto.photo } : {}),
+          ...(encryptedToken ? { googleAccessToken: encryptedToken } : {}),
         },
       },
       { upsert: true, new: true, runValidators: true }
@@ -239,10 +243,86 @@ export class UsersService {
         ),
       ]);
 
-      return this.mergeProfile(userId, profile);
+      // CV upload always replaces the full profile — the user is explicitly refreshing their data.
+      const user = await this.userModel.findOneAndUpdate(
+        { _id: userId },
+        { $set: { profile } },
+        { new: true, runValidators: true }
+      ).exec();
+      if (!user) throw new NotFoundException('User not found');
+      return user;
     } finally {
       await unlink(tmpPath).catch(() => { /* best-effort cleanup */ });
     }
+  }
+
+  // ── Search Config ─────────────────────────────────────────────────────────
+
+  /** Returns the user's persisted AppConfig, or null if never saved. */
+  async getSearchConfig(userId: string): Promise<AppConfig | null> {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) throw new NotFoundException('User not found');
+    return (user.searchConfig as AppConfig | null) ?? null;
+  }
+
+  /** Persists the full AppConfig for the user. */
+  async saveSearchConfig(userId: string, config: AppConfig): Promise<AppConfig> {
+    const user = await this.userModel.findOneAndUpdate(
+      { _id: userId },
+      { $set: { searchConfig: config } },
+      { new: true, runValidators: true }
+    ).exec();
+    if (!user) throw new NotFoundException('User not found');
+    return (user.searchConfig as AppConfig);
+  }
+
+  /**
+   * Seeds searchConfig.search fields from the parsed CV profile.
+   * Only sets keywords (skills + techStack) and seniority — leaves other
+   * fields untouched so user-defined values are never overwritten.
+   * Called automatically after CV import.
+   */
+  async seedSearchConfigFromProfile(userId: string, profile: ProfessionalProfile): Promise<void> {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) return;
+
+    const existing = (user.searchConfig as AppConfig | null);
+
+    // Build role-based keywords: headline + most recent job titles (3 max).
+    // JSearch expects a job role query (e.g. "Senior Full Stack Developer"), not a skill list.
+    const roleTitles = (profile.experience ?? [])
+      .slice(0, 2)
+      .map((exp) => exp.title)
+      .filter(Boolean);
+
+    const keywords = Array.from(new Set([
+      ...(profile.headline ? [profile.headline] : []),
+      ...roleTitles,
+    ])).slice(0, 3);
+
+    const seniority = profile.seniority ? [profile.seniority] : ['Mid'];
+
+    const merged: AppConfig = {
+      search: {
+        keywords,
+        location: existing?.search?.location ?? 'Remote',
+        modality: existing?.search?.modality ?? ['Remote'],
+        languages: existing?.search?.languages ?? ['English'],
+        seniority,
+        datePosted: existing?.search?.datePosted ?? 'past_month',
+        excludedCompanies: existing?.search?.excludedCompanies ?? [],
+        platforms: existing?.search?.platforms ?? ['linkedin'],
+        maxJobsToFind: existing?.search?.maxJobsToFind ?? 100,
+      },
+      matching: existing?.matching ?? { minScoreToApply: 70, maxApplicationsPerSession: 10 },
+      coverLetter: existing?.coverLetter ?? { language: 'en', tone: 'professional' },
+      report: existing?.report ?? { format: 'both' },
+    };
+
+    await this.userModel.findOneAndUpdate(
+      { _id: userId },
+      { $set: { searchConfig: merged } }
+    ).exec();
   }
 
   // ── Phase 2: Search preset CRUD ──────────────────────────────────────────

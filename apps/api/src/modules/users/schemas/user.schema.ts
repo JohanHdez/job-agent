@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import type { ProfessionalProfile, SearchPresetType, SmtpConfigType } from '@job-agent/core';
+import type { AppConfig, ProfessionalProfile, SearchPresetType, SmtpConfigType } from '@job-agent/core';
 
 /** Auth providers a user can link to their account */
 export type AuthProvider = 'linkedin' | 'google';
@@ -51,6 +51,13 @@ export class User {
   @Prop({ sparse: true, index: true })
   googleId?: string;
 
+  /**
+   * Google OAuth access token — stored AES-256-GCM encrypted.
+   * Used to send emails via Gmail API without requiring SMTP credentials.
+   */
+  @Prop()
+  googleAccessToken?: string;
+
   // ── JWT refresh tokens ──────────────────────────────────────────────────────
 
   /**
@@ -99,6 +106,15 @@ export class User {
    */
   @Prop({ type: String })
   contactEmail?: string;
+
+  // ── Search Configuration ─────────────────────────────────────────────────────
+
+  /**
+   * Persisted AppConfig for the job search agent.
+   * Auto-populated from CV on upload. User can override via /config screen.
+   */
+  @Prop({ type: Object, default: null })
+  searchConfig!: AppConfig | null;
 
   // ── Phase 5: SMTP Configuration ─────────────────────────────────────────────
 

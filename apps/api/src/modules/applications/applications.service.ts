@@ -25,11 +25,11 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import type { EmailDraftAdapter, ProfessionalProfile, SmtpConfigType } from '@job-agent/core';
+import type { EmailDraftAdapter, ProfessionalProfile } from '@job-agent/core';
 import { Application, ApplicationDocument } from './schemas/application.schema.js';
 import { Vacancy, VacancyDocument } from '../vacancies/schemas/vacancy.schema.js';
 import { EmailSenderService } from './email-sender.service.js';
-import { EMAIL_DRAFT_ADAPTER_TOKEN } from './applications.module.js';
+import { EMAIL_DRAFT_ADAPTER_TOKEN } from './applications.tokens.js';
 import type { CreateApplicationDto } from './dto/create-application.dto.js';
 import type { UpdateApplicationStatusDto } from './dto/update-application-status.dto.js';
 
@@ -128,13 +128,17 @@ export class ApplicationsService {
    *
    * @param userId - JWT-extracted user ID
    * @param applicationId - MongoDB ObjectId string of the application
-   * @param smtpConfig - User's SMTP configuration (password AES-256-GCM encrypted)
+   * @param encryptedGoogleToken - AES-256-GCM encrypted Google OAuth access token
+   * @param fromName - Sender display name (user's full name)
+   * @param fromEmail - Sender email (user's Google account email)
    * @returns Updated ApplicationDocument with 'sent' status
    */
   async sendApplication(
     userId: string,
     applicationId: string,
-    smtpConfig: SmtpConfigType
+    encryptedGoogleToken: string,
+    fromName: string,
+    fromEmail: string,
   ): Promise<ApplicationDocument> {
     const app = await this.applicationModel.findOne({ _id: applicationId, userId }).exec();
     if (!app) throw new NotFoundException('Application not found');
@@ -148,7 +152,9 @@ export class ApplicationsService {
       to: app.recipientEmail,
       subject: app.emailContent.subject,
       body: app.emailContent.body,
-      smtpConfig,
+      fromName,
+      fromEmail,
+      encryptedGoogleToken,
     });
 
     const now = new Date().toISOString();

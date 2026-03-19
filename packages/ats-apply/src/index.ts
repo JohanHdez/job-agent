@@ -17,7 +17,7 @@
  *   }
  */
 
-import type { AppConfig, ApplicationMethod, ApplicationStatus, JobListing, ProfessionalProfile } from '@job-agent/core';
+import type { AppConfig, ApplicationMethod, JobListing, ProfessionalProfile } from '@job-agent/core';
 import { detectAts }                       from './detectors/ats-detector.js';
 import { detectApplyEmail }                from './detectors/email-detector.js';
 import { applyViaGreenhouse }              from './handlers/greenhouse.handler.js';
@@ -43,7 +43,7 @@ export interface ApplyToAtsParams {
 
 export interface ApplyToAtsResult {
   /** Whether the application was submitted or was a duplicate. */
-  status: Extract<ApplicationStatus, 'applied' | 'already_applied'>;
+  status: 'applied' | 'already_applied';
   /** Which API handled the submission. */
   method: ApplicationMethod;
   /**

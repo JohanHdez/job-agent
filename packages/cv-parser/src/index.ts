@@ -14,11 +14,26 @@ import type { ProfessionalProfile } from '@job-agent/core';
 import { parseCV } from './parsers/pdf.parser';
 import { buildProfile } from './extractors/profile.builder';
 import { extractProfileWithClaude } from './extractors/claude.extractor';
+import { extractProfileWithGemini } from './extractors/gemini.extractor';
 import { logger } from './utils/logger';
 
 export { parseCV } from './parsers/pdf.parser';
 export { buildProfile } from './extractors/profile.builder';
 export { extractProfileWithClaude } from './extractors/claude.extractor';
+export { extractProfileWithGemini } from './extractors/gemini.extractor';
+
+/**
+ * Selects the AI extractor based on the AI_PROVIDER env variable.
+ * Returns the extracted profile or null on failure.
+ */
+async function extractWithAiProvider(rawText: string): Promise<ReturnType<typeof buildProfile> | null> {
+  const provider = (process.env['AI_PROVIDER'] ?? 'gemini').toLowerCase().trim();
+  if (provider === 'claude') {
+    return extractProfileWithClaude(rawText);
+  }
+  console.log('--- USANDO GEMINI PARA EXTRACCIÓN ---')
+  return extractProfileWithGemini(rawText);
+}
 
 /**
  * Full pipeline: parse a CV file and return the professional profile.
@@ -39,14 +54,14 @@ export async function runCvParser(
 
   const rawData = await parseCV(cvPath);
 
-  // 1. Try Claude API extraction first
-  const claudeProfile = await extractProfileWithClaude(rawData.text);
+  // 1. Try AI extraction (provider selected via AI_PROVIDER env var)
+  const aiProfile = await extractWithAiProvider(rawData.text);
 
-  // 2. Fall back to heuristic extraction if Claude is unavailable or fails
-  const profile: ProfessionalProfile = claudeProfile ?? buildProfile(rawData);
+  // 2. Fall back to heuristic extraction if AI provider is unavailable or fails
+  const profile: ProfessionalProfile = aiProfile ?? buildProfile(rawData);
 
-  if (!claudeProfile) {
-    logger.info('Using heuristic extraction (Claude API unavailable or failed)');
+  if (!aiProfile) {
+    logger.info('Using heuristic extraction (AI provider unavailable or failed)');
   }
 
   if (outputPath) {

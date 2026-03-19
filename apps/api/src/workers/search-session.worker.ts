@@ -28,7 +28,7 @@ import type { Model } from 'mongoose';
 import chalk = require('chalk');
 import type { StoredSessionEvent, SessionStatus, SearchConfigSnapshotType, ProfessionalProfile } from '@job-agent/core';
 import { JSearchAdapter } from './adapters/jsearch.adapter.js';
-import { ClaudeScoringAdapter } from './adapters/claude-scoring.adapter.js';
+import { createScoringAdapter } from './adapters/ai-provider.factory.js';
 import { runSearchPipeline, type AnyModel } from './pipeline.js';
 
 // ---------------------------------------------------------------------------
@@ -154,17 +154,27 @@ async function processSession(job: Job<SearchSessionJobData>): Promise<void> {
 
   // 4. Create adapters from environment variables
   const rapidApiKey = process.env['RAPIDAPI_KEY'] ?? '';
-  const anthropicKey = process.env['ANTHROPIC_API_KEY'] ?? '';
 
   if (!rapidApiKey) {
     process.stderr.write(chalk.yellow('[search-session-worker] RAPIDAPI_KEY not set — JSearch calls will fail\n'));
   }
-  if (!anthropicKey) {
-    process.stderr.write(chalk.yellow('[search-session-worker] ANTHROPIC_API_KEY not set — scoring will return 0s\n'));
-  }
 
   const adapter = new JSearchAdapter(rapidApiKey);
-  const scorer = new ClaudeScoringAdapter(anthropicKey);
+
+  let scorer;
+  try {
+    scorer = createScoringAdapter();
+    process.stdout.write(chalk.blue(`[search-session-worker] Using scorer: ${scorer.name}\n`));
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    process.stderr.write(chalk.yellow(`[search-session-worker] Scorer init failed: ${message} — scores will be 0\n`));
+    // Fallback: import and use a no-op scorer so the pipeline can still save vacancies
+    scorer = {
+      name: 'NoOpScorer',
+      scoreBatch: async (jobs: Array<{ index: number }>) =>
+        jobs.map((j) => ({ index: j.index, score: 0, reason: 'no_scorer_configured' })),
+    };
+  }
 
   // 5. Run pipeline
   try {

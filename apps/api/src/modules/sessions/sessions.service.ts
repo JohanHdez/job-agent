@@ -59,38 +59,55 @@ export class SessionsService {
 
     // Resolve active preset from user document
     const user = await this.userModel
-      .findById(userId, { searchPresets: 1, activePresetId: 1 })
+      .findById(userId, { searchPresets: 1, activePresetId: 1, searchConfig: 1 })
       .lean()
       .exec();
 
-    if (!user?.activePresetId) {
-      throw new BadRequestException({
-        code: 'NO_ACTIVE_PRESET',
-        message: 'User must have an active search preset before starting a session',
-      });
-    }
+    // Build SearchConfigSnapshot — prefer active preset, fall back to searchConfig
+    let config: SearchConfigSnapshotType;
 
-    const preset = user.searchPresets.find((p) => p.id === user.activePresetId);
-    if (!preset) {
-      throw new BadRequestException({
-        code: 'PRESET_NOT_FOUND',
-        message: `Active preset ${user.activePresetId} not found in user presets`,
-      });
+    if (user?.activePresetId) {
+      const preset = user.searchPresets.find((p) => p.id === user.activePresetId);
+      if (!preset) {
+        throw new BadRequestException({
+          code: 'PRESET_NOT_FOUND',
+          message: `Active preset ${user.activePresetId} not found in user presets`,
+        });
+      }
+      config = {
+        keywords: preset.keywords,
+        location: preset.location,
+        modality: preset.modality,
+        platforms: preset.platforms,
+        seniority: preset.seniority,
+        languages: preset.languages,
+        datePosted: preset.datePosted,
+        minScoreToApply: preset.minScoreToApply,
+        maxApplicationsPerSession: preset.maxApplicationsPerSession,
+        excludedCompanies: preset.excludedCompanies,
+      };
+    } else {
+      // Fall back to searchConfig saved from ConfigPage
+      const sc = user?.searchConfig;
+      if (!sc) {
+        throw new BadRequestException({
+          code: 'NO_SEARCH_CONFIG',
+          message: 'Configure your search settings before starting a session',
+        });
+      }
+      config = {
+        keywords: sc.search.keywords,
+        location: sc.search.location,
+        modality: sc.search.modality,
+        platforms: sc.search.platforms,
+        seniority: sc.search.seniority,
+        languages: sc.search.languages,
+        datePosted: sc.search.datePosted,
+        minScoreToApply: sc.matching.minScoreToApply,
+        maxApplicationsPerSession: sc.matching.maxApplicationsPerSession,
+        excludedCompanies: sc.search.excludedCompanies,
+      };
     }
-
-    // Build SearchConfigSnapshot from preset — snapshot is immutable from this point
-    const config: SearchConfigSnapshotType = {
-      keywords: preset.keywords,
-      location: preset.location,
-      modality: preset.modality,
-      platforms: preset.platforms,
-      seniority: preset.seniority,
-      languages: preset.languages,
-      datePosted: preset.datePosted,
-      minScoreToApply: preset.minScoreToApply,
-      maxApplicationsPerSession: preset.maxApplicationsPerSession,
-      excludedCompanies: preset.excludedCompanies,
-    };
 
     const session = await this.sessionModel.create({
       userId,
@@ -233,5 +250,17 @@ export class SessionsService {
       void this.redisSubscriber.unsubscribe(channel);
       logger.info('SSE connection closed, unsubscribed from Redis channel', { sessionId });
     });
+  }
+
+  /**
+   * Returns the user's current active session (status: queued or running), or null if none.
+   * Used by the frontend to poll session progress without knowing the session ID.
+   */
+  async getActiveSession(userId: string): Promise<{ session: SessionDocument | null }> {
+    const session = await this.sessionModel
+      .findOne({ userId, status: { $in: ['queued', 'running'] } })
+      .sort({ createdAt: -1 })
+      .exec();
+    return { session };
   }
 }

@@ -1,16 +1,14 @@
 /**
- * EmailSenderService — sends application emails via SMTP using nodemailer.
+ * EmailSenderService — sends application emails via Gmail API.
  *
- * Decrypts the user's SMTP password at send time using AES-256-GCM token-cipher.
- * Creates a fresh transporter per send to avoid stale connection state.
+ * Uses the user's Google OAuth access token (stored encrypted) so no SMTP
+ * credentials are required. The token is decrypted at send time.
  */
 
-import { Injectable } from '@nestjs/common';
-import { createTransport } from 'nodemailer';
-import type { Transporter } from 'nodemailer';
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { google } from 'googleapis';
 import { createLogger } from '@job-agent/logger';
 import { decryptToken } from '../../common/crypto/token-cipher.js';
-import type { SmtpConfigType } from '@job-agent/core';
 
 const logger = createLogger('EmailSenderService');
 
@@ -22,44 +20,64 @@ export interface SendEmailParams {
   subject: string;
   /** Plain-text email body */
   body: string;
-  /** User's SMTP configuration (password is AES-256-GCM encrypted at rest) */
-  smtpConfig: SmtpConfigType;
+  /** Sender display name (user's full name) */
+  fromName: string;
+  /** Sender email address (user's Google account email) */
+  fromEmail: string;
+  /** AES-256-GCM encrypted Google OAuth access token */
+  encryptedGoogleToken: string;
 }
 
 @Injectable()
 export class EmailSenderService {
   /**
-   * Sends an email using the user's SMTP configuration.
-   * Decrypts the SMTP password at send time using token-cipher.
+   * Sends an email using the Gmail API with the user's Google OAuth token.
+   * Decrypts the token at send time — never stored in plain text.
    *
-   * @param params - Recipient, subject, body, and SMTP config
-   * @returns SMTP message ID on success
-   * @throws Error on SMTP authentication or delivery failure
+   * @param params - Recipient, subject, body, sender info, encrypted token
+   * @returns Gmail message ID on success
+   * @throws BadRequestException when Google token is missing or expired
    */
   async send(params: SendEmailParams): Promise<string> {
-    const { to, subject, body, smtpConfig } = params;
+    const { to, subject, body, fromName, fromEmail, encryptedGoogleToken } = params;
 
-    const decryptedPassword = decryptToken(smtpConfig.password);
+    const accessToken = decryptToken(encryptedGoogleToken);
 
-    const transporter: Transporter = createTransport({
-      host: smtpConfig.host,
-      port: smtpConfig.port,
-      secure: smtpConfig.secure,
-      auth: {
-        user: smtpConfig.user,
-        pass: decryptedPassword,
-      },
-    });
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
 
-    const info = await transporter.sendMail({
-      from: `"${smtpConfig.fromName}" <${smtpConfig.fromEmail}>`,
-      to,
-      subject,
-      text: body,
-    });
+    const gmail = google.gmail({ version: 'v1', auth });
 
-    const messageId = typeof info.messageId === 'string' ? info.messageId : String(info.messageId);
-    logger.info('Email sent successfully', { to, subject, messageId });
-    return messageId;
+    // RFC 2822 message format
+    const rawMessage = [
+      `From: "${fromName}" <${fromEmail}>`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/plain; charset=utf-8',
+      '',
+      body,
+    ].join('\r\n');
+
+    const encoded = Buffer.from(rawMessage)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    try {
+      const res = await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: { raw: encoded },
+      });
+
+      const messageId = res.data.id ?? 'unknown';
+      logger.info('Email sent via Gmail API', { to, subject, messageId });
+      return messageId;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error('Gmail API send failed', { to, error: msg });
+      throw new BadRequestException(`Failed to send email via Gmail API: ${msg}`);
+    }
   }
 }

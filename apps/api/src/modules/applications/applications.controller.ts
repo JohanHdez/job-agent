@@ -34,7 +34,7 @@ import { CreateApplicationDto } from './dto/create-application.dto.js';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto.js';
 import type { UserDocument } from '../users/schemas/user.schema.js';
 import type { Request } from 'express';
-import type { ProfessionalProfile, SmtpConfigType } from '@job-agent/core';
+import type { ProfessionalProfile } from '@job-agent/core';
 
 interface AuthenticatedRequest extends Request {
   user: UserDocument;
@@ -204,8 +204,8 @@ export class ApplicationsController {
   }
 
   /**
-   * POST /applications/:id/send — dispatch email via SMTP.
-   * Fetches user's smtpConfig for SMTP credentials. Returns 400 if not configured.
+   * POST /applications/:id/send — dispatch email via Gmail API using Google OAuth token.
+   * Requires the user to be logged in with Google. Returns 400 if token is missing.
    *
    * @returns Updated ApplicationDocument with 'sent' status
    */
@@ -218,14 +218,20 @@ export class ApplicationsController {
     const user = await this.usersService.findById(userId);
     if (!user) throw new BadRequestException('User not found');
 
-    const smtpConfig = user.smtpConfig as SmtpConfigType | undefined;
-    if (!smtpConfig) {
+    const encryptedGoogleToken = user.googleAccessToken;
+    if (!encryptedGoogleToken) {
       throw new BadRequestException(
-        'SMTP configuration is required to send applications. Please configure it in settings.'
+        'Google account required to send emails. Please log in with Google.'
       );
     }
 
-    return this.applicationsService.sendApplication(userId, id, smtpConfig);
+    return this.applicationsService.sendApplication(
+      userId,
+      id,
+      encryptedGoogleToken,
+      user.name,
+      user.email,
+    );
   }
 
   /**

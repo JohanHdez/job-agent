@@ -15,7 +15,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { EmailDraftAdapter, EmailDraftInput, EmailDraftOutput } from '@job-agent/core';
 
-const MODEL = 'claude-sonnet-4-6-20250514';
+const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
 const TIMEOUT_MS = 8000;
 const MAX_RETRIES = 2;

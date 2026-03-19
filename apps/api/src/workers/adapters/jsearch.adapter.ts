@@ -100,21 +100,47 @@ export class JSearchAdapter implements JobSearchAdapter {
    * @returns Array of raw job results normalised to RawJobResult shape
    */
   async search(params: SearchParams): Promise<RawJobResult[]> {
+    const location = params.location?.trim() || 'Remote';
+    const isRemoteOnly = params.modality.length === 1 && params.modality[0] === 'Remote';
+
+    // Build keyword candidates: primary first, then English fallbacks.
+    // JSearch only supports English queries — non-English titles yield 0 results.
+    const rawKeyword = params.keywords[0] ?? '';
+    const keywordCandidates: string[] = rawKeyword ? [rawKeyword, 'Software Developer'] : ['Software Developer'];
+
+    let results: RawJobResult[] = [];
+
+    for (const keyword of keywordCandidates) {
+      results = await this.fetchPages({ keyword, location, isRemoteOnly, datePosted: params.datePosted, minResults: params.minResults, maxPages: params.maxPages });
+      if (results.length > 0) break;
+      process.stdout.write(chalk.yellow(`[jsearch] 0 results for "${keyword}" — trying next keyword candidate\n`));
+    }
+
+    process.stdout.write(chalk.green(`[jsearch] Collected ${results.length} total results\n`));
+    return results;
+  }
+
+  private async fetchPages(opts: {
+    keyword: string;
+    location: string;
+    isRemoteOnly: boolean;
+    datePosted: string;
+    minResults: number;
+    maxPages: number;
+  }): Promise<RawJobResult[]> {
+    const { keyword, location, isRemoteOnly, datePosted, minResults, maxPages } = opts;
     const results: RawJobResult[] = [];
     let page = 1;
 
-    while (results.length < params.minResults && page <= params.maxPages) {
-      const query = params.keywords.join(' ');
+    process.stdout.write(chalk.blue(`[jsearch] Searching: "${keyword}" in "${location}" remote_only=${isRemoteOnly}\n`));
+
+    while (results.length < minResults && page <= maxPages) {
       const url = new URL(JSEARCH_BASE_URL);
-      url.searchParams.set('query', `${query} in ${params.location}`);
+      url.searchParams.set('query', `${keyword} in ${location}`);
       url.searchParams.set('page', String(page));
       url.searchParams.set('num_pages', '1');
-      url.searchParams.set('date_posted', DATE_POSTED_MAP[params.datePosted] ?? 'week');
-
-      // Map modality to JSearch remote_jobs_only param
-      if (params.modality.length === 1 && params.modality[0] === 'Remote') {
-        url.searchParams.set('remote_jobs_only', 'true');
-      }
+      url.searchParams.set('date_posted', DATE_POSTED_MAP[datePosted] ?? 'month');
+      if (isRemoteOnly) url.searchParams.set('remote_jobs_only', 'true');
 
       process.stdout.write(chalk.blue(`[jsearch] Fetching page ${page}: ${url.toString()}\n`));
 
@@ -128,20 +154,19 @@ export class JSearchAdapter implements JobSearchAdapter {
 
       if (!response.ok) {
         process.stderr.write(chalk.red(`[jsearch] API error ${response.status}: ${response.statusText}\n`));
-        break; // Return partial results on API error
+        break;
       }
 
       const body = (await response.json()) as JSearchResponse;
       const items = body.data ?? [];
 
-      if (items.length === 0) break; // No more results
+      if (items.length === 0) {
+        process.stdout.write(chalk.yellow(`[jsearch] Page ${page} returned 0 items (query: ${url.searchParams.get('query')})\n`));
+        break;
+      }
 
       for (const item of items) {
-        // Skip items missing required fields
-        if (!item.job_id || !item.job_title || !item.employer_name || !item.job_apply_link) {
-          continue;
-        }
-
+        if (!item.job_id || !item.job_title || !item.employer_name || !item.job_apply_link) continue;
         const locationParts = [item.job_city, item.job_state, item.job_country].filter(Boolean);
         results.push({
           jobId: item.job_id,
@@ -156,12 +181,9 @@ export class JSearchAdapter implements JobSearchAdapter {
       }
 
       page++;
-
-      // Rate limit: 1s delay between pages to avoid hammering the API
       await new Promise<void>((resolve) => setTimeout(resolve, 1000));
     }
 
-    process.stdout.write(chalk.green(`[jsearch] Collected ${results.length} results across ${page - 1} pages\n`));
     return results;
   }
 }

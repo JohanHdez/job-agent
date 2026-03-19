@@ -3,7 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { createLogger } from '@job-agent/logger';
-import { AppModule } from './app.module.js';
+import { AppModule } from './app.module';
 
 const logger = createLogger('api');
 
@@ -19,7 +19,7 @@ async function bootstrap(): Promise<void> {
         cb(null, !_origin || _origin === allowed);
       },
       credentials: true,
-      methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     },
   });
 

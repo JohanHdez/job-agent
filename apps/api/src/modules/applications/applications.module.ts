@@ -14,20 +14,23 @@
 
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { Application, ApplicationSchema } from './schemas/application.schema.js';
 import { ApplicationsController } from './applications.controller.js';
 import { ApplicationsService } from './applications.service.js';
 import { EmailSenderService } from './email-sender.service.js';
-import { ClaudeEmailDraftAdapter } from '../../workers/adapters/claude-email-draft.adapter.js';
+import { createEmailDraftAdapter } from '../../workers/adapters/ai-provider.factory.js';
 import { VacanciesModule } from '../vacancies/vacancies.module.js';
 import { UsersModule } from '../users/users.module.js';
+import { EMAIL_DRAFT_ADAPTER_TOKEN } from './applications.tokens.js';
 
-/** Injection token for the EmailDraftAdapter — enables swapping without code changes */
-export const EMAIL_DRAFT_ADAPTER_TOKEN = Symbol('EMAIL_DRAFT_ADAPTER_TOKEN');
+export { EMAIL_DRAFT_ADAPTER_TOKEN } from './applications.tokens.js';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Application.name, schema: ApplicationSchema }]),
+    BullModule.registerQueue({ name: 'applications' }),
     VacanciesModule,
     UsersModule,
   ],
@@ -37,14 +40,11 @@ export const EMAIL_DRAFT_ADAPTER_TOKEN = Symbol('EMAIL_DRAFT_ADAPTER_TOKEN');
     EmailSenderService,
     {
       provide: EMAIL_DRAFT_ADAPTER_TOKEN,
-      useFactory: () => {
-        const apiKey = process.env['ANTHROPIC_API_KEY'];
-        if (!apiKey) {
-          throw new Error(
-            'ANTHROPIC_API_KEY environment variable is required for email draft generation'
-          );
-        }
-        return new ClaudeEmailDraftAdapter(apiKey);
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const anthropicKey = config.get<string>('ANTHROPIC_API_KEY');
+        const geminiKey = config.get<string>('GEMINI_API_KEY');
+        return createEmailDraftAdapter(anthropicKey, geminiKey);
       },
     },
   ],
