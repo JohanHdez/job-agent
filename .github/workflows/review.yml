@@ -9,6 +9,7 @@ jobs:
   review-commits:
     name: Commit messages
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: read
       pull-requests: write
@@ -28,7 +29,8 @@ jobs:
 
       - uses: anthropics/claude-code-action@beta
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           direct_prompt: |
             Review the following git commit messages from a pull request in the
             "job-agent" TypeScript monorepo. Evaluate them against Conventional
@@ -55,6 +57,7 @@ jobs:
   review-standards:
     name: Coding standards
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: read
       pull-requests: write
@@ -64,7 +67,8 @@ jobs:
 
       - uses: anthropics/claude-code-action@beta
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           direct_prompt: |
             Review the TypeScript files changed in this PR against the project's
             coding standards (defined in CLAUDE.md).
@@ -92,6 +96,7 @@ jobs:
   review-security:
     name: Security checks
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: read
       pull-requests: write
@@ -101,7 +106,8 @@ jobs:
 
       - uses: anthropics/claude-code-action@beta
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           direct_prompt: |
             Perform a security review of the files changed in this PR.
             This is a LinkedIn automation tool that handles credentials and

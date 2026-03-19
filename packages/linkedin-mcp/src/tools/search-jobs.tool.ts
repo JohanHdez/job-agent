@@ -54,7 +54,7 @@ interface RawJobData {
  * far more resilient to LinkedIn's frequent class-name changes.
  */
 async function extractAllJobsFromPage(page: Page): Promise<RawJobData[]> {
-  return page.evaluate((): RawJobData[] => {
+  return page.evaluate<RawJobData[]>((): RawJobData[] => {
     const results: RawJobData[] = [];
 
     // Strategy 1: data-job-id attribute (very stable across LinkedIn versions)
@@ -143,7 +143,7 @@ async function extractAllJobsFromPage(page: Page): Promise<RawJobData[]> {
     }
 
     return results;
-  }) as Promise<RawJobData[]>;
+  });
 }
 
 /**

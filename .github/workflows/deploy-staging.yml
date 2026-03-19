@@ -1,0 +1,85 @@
+name: Deploy — Staging
+
+# Triggers automatically when CI passes on main branch
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+jobs:
+  deploy-staging:
+    name: Deploy to staging
+    runs-on: ubuntu-latest
+    # Only deploy when CI succeeded (not on CI failure or cancellation)
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL }}
+    # Target: complete staging build in under 5 minutes
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Build all packages
+        run: npm run build
+
+      # ── Configure AWS credentials ──────────────────────────────────────────
+      # Required secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+      # Required vars:    AWS_REGION, STAGING_INSTANCE_ID or STAGING_S3_BUCKET
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      # ── Deploy application ─────────────────────────────────────────────────
+      # TODO: Replace this step with your actual deployment strategy.
+      # Examples:
+      #   AWS EC2 via SSM:
+      #     aws ssm send-command --instance-ids $STAGING_INSTANCE_ID \
+      #       --document-name "AWS-RunShellScript" \
+      #       --parameters 'commands=["cd /app && git pull && npm ci && npm run build && pm2 restart job-agent"]'
+      #
+      #   AWS ECS (Docker):
+      #     aws ecs update-service --cluster staging --service job-agent --force-new-deployment
+      #
+      #   AWS S3 + CloudFront (UI only):
+      #     aws s3 sync apps/ui/ s3://$STAGING_S3_BUCKET --delete
+      #     aws cloudfront create-invalidation --distribution-id $CF_DIST_ID --paths "/*"
+      - name: Deploy to staging
+        env:
+          STAGING_INSTANCE_ID: ${{ vars.STAGING_INSTANCE_ID }}
+        run: |
+          echo "Deploying to staging instance: $STAGING_INSTANCE_ID"
+          # TODO: Insert deployment command here (SSM, ECS, SSH, etc.)
+          echo "Deployment step — configure vars.STAGING_INSTANCE_ID and AWS secrets to activate."
+
+      - name: Smoke test — health check
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL }}
+        run: |
+          echo "Running health check against $STAGING_URL/api/health"
+          # Retry up to 6 times (30s apart) to allow server restart
+          for i in $(seq 1 6); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$STAGING_URL/api/health" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed (attempt $i)"
+              exit 0
+            fi
+            echo "Attempt $i: status $STATUS — retrying in 30s..."
+            sleep 30
+          done
+          echo "Health check failed after 6 attempts"
+          exit 1

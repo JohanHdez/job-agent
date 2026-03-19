@@ -1,0 +1,4 @@
+/* App-level styles — layout handled per-page via Tailwind */
+#root {
+  min-height: 100vh;
+}

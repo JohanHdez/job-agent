@@ -23,7 +23,8 @@ export interface WorkExperience {
   company: string;
   title: string;
   startDate: string;
-  endDate: string | 'Present';
+  /** ISO date string, or the literal "Present" if still employed */
+  endDate: string;
   description: string[];
   technologies: string[];
 }

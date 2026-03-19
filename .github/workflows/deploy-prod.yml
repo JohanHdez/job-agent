@@ -1,0 +1,112 @@
+name: Deploy — Production
+
+# Manual trigger only — requires explicit approval from a reviewer
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm production deployment'
+        required: true
+        type: string
+      ref:
+        description: 'Git ref to deploy (branch, tag, or SHA — defaults to main)'
+        required: false
+        default: main
+        type: string
+
+jobs:
+  # ── Guard: prevent accidental deploys ────────────────────────────────────
+  guard:
+    name: Confirm deployment intent
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify confirmation word
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "deploy" ]; then
+            echo "Confirmation word must be 'deploy'. Got: '${{ github.event.inputs.confirm }}'"
+            exit 1
+          fi
+          echo "Confirmation accepted. Proceeding to production deployment."
+
+  # ── Deploy: production environment ───────────────────────────────────────
+  deploy-prod:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    needs: guard
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    # Required reviewers are configured in GitHub repo Settings →
+    # Environments → production → Required reviewers
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies (production only)
+        run: npm ci --omit=dev
+
+      - name: Build all packages
+        run: npm run build
+
+      # ── Configure AWS credentials ──────────────────────────────────────────
+      # Required secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+      # Required vars:    AWS_REGION, PRODUCTION_INSTANCE_ID or PRODUCTION_S3_BUCKET
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      # ── Deploy application ─────────────────────────────────────────────────
+      # TODO: Replace this step with your actual deployment strategy.
+      # See deploy-staging.yml for examples (EC2 SSM, ECS, S3+CloudFront).
+      - name: Deploy to production
+        env:
+          PRODUCTION_INSTANCE_ID: ${{ vars.PRODUCTION_INSTANCE_ID }}
+        run: |
+          echo "Deploying ref '${{ github.event.inputs.ref }}' to production: $PRODUCTION_INSTANCE_ID"
+          # TODO: Insert production deployment command here
+          echo "Deployment step — configure vars.PRODUCTION_INSTANCE_ID and AWS secrets to activate."
+
+      - name: Production health check
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        run: |
+          echo "Health check: $PRODUCTION_URL/api/health"
+          for i in $(seq 1 6); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PRODUCTION_URL/api/health" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Production health check passed (attempt $i)"
+              exit 0
+            fi
+            echo "Attempt $i: status $STATUS — retrying in 30s..."
+            sleep 30
+          done
+          echo "Production health check failed"
+          exit 1
+
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "Production deployment successful."
+          echo "Ref: ${{ github.event.inputs.ref }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Timestamp: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Production deployment FAILED."
+          echo "Ref: ${{ github.event.inputs.ref }}"
+          echo "Triggered by: ${{ github.actor }}"
+          # TODO: Add Slack/email notification here

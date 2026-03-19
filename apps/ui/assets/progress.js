@@ -22,6 +22,7 @@ const STEP_LABELS = [
 
 let currentStep = 0;
 let eventSource = null;
+let semanticSource = null;
 
 // ── DOM references ────────────────────────────────────────────────
 const progressFill    = document.getElementById('progress-fill');
@@ -33,6 +34,9 @@ const doneBanner      = document.getElementById('done-banner');
 const progressCard    = document.getElementById('progress-card');
 const statusBadge     = document.getElementById('status-badge');
 const statusDesc      = document.getElementById('status-description');
+const cntFound        = document.getElementById('cnt-found');
+const cntApplied      = document.getElementById('cnt-applied');
+const cntSkipped      = document.getElementById('cnt-skipped');
 
 // ── Step list state ───────────────────────────────────────────────
 const stepItems = [];
@@ -185,9 +189,56 @@ function showToast(title, body, type = 'success', duration = 5000) {
   setTimeout(() => toast.remove(), duration);
 }
 
+// ── Counter helpers ───────────────────────────────────────────────
+
+function setCounter(el, value) {
+  if (!el) return;
+  el.textContent = String(value);
+  el.classList.remove('bump');
+  // Trigger reflow to restart animation
+  void el.offsetWidth;
+  el.classList.add('bump');
+  setTimeout(() => el.classList.remove('bump'), 200);
+}
+
+// ── Typed SSE (GET /api/search/events) ───────────────────────────
+
+function connectSemantic() {
+  if (semanticSource) semanticSource.close();
+
+  semanticSource = new EventSource(`${API_BASE}/search/events`);
+
+  semanticSource.addEventListener('job_found', (e) => {
+    const data = JSON.parse(e.data);
+    setCounter(cntFound, data.totalFound);
+  });
+
+  semanticSource.addEventListener('job_applied', (e) => {
+    const data = JSON.parse(e.data);
+    setCounter(cntApplied, data.totalApplied);
+    appendLog(`✓ Applied: ${data.title} @ ${data.company} via ${data.method}`, 'success');
+  });
+
+  semanticSource.addEventListener('job_skipped', (e) => {
+    const data = JSON.parse(e.data);
+    setCounter(cntSkipped, data.totalSkipped);
+  });
+
+  semanticSource.addEventListener('captcha_detected', (e) => {
+    const data = JSON.parse(e.data);
+    appendLog(`⚠️ CAPTCHA detected on ${data.platform}: ${data.message}`, 'warn');
+    showToast('CAPTCHA detected', `Stopped on ${data.platform}. Manual action required.`, 'warn');
+  });
+
+  semanticSource.addEventListener('session_complete', () => {
+    semanticSource.close();
+  });
+}
+
 // ── Init ─────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
   initStepList();
   connect();
+  connectSemantic();
 });

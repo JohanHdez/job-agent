@@ -1,16 +1,25 @@
 /**
- * Agent Routes — /api/run, /api/run/progress, /api/report
+ * Agent Routes — /api/run, /api/run/progress, /api/search/events, /api/report
  *
- * POST  /api/run           — Start the full agent pipeline, returns { sessionId }
- * GET   /api/run/progress  — SSE stream of real-time progress events
- * GET   /api/report        — Returns session summary + applications as JSON
+ * POST  /api/run             — Start the full agent pipeline, returns { sessionId }
+ * GET   /api/run/progress    — SSE stream of raw pipeline progress events
+ * GET   /api/search/events   — SSE stream of typed semantic events (job_found, job_applied, …)
+ * GET   /api/report          — Returns session summary + applications as JSON
  */
 
 import { Router, type Request, type Response } from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import yaml from 'js-yaml';
-import type { AppConfig, ProfessionalProfile, SessionSummary, ApplicationRecord, JobListing } from '@job-agent/core';
+import type {
+  AppConfig,
+  ProfessionalProfile,
+  SessionSummary,
+  ApplicationRecord,
+  JobListing,
+  SsePayload,
+  SseProgressPayload,
+} from '@job-agent/core';
 import { logger } from '../utils/logger.js';
 
 export const agentRouter = Router();
@@ -23,35 +32,67 @@ const CONFIG_PATH = process.env['CONFIG_PATH'] ?? path.resolve('./config.yaml');
 
 // ─── Session state (in-memory, single session) ───────────────────────────────
 
-interface ProgressEvent {
-  step: number;
-  total: number;
-  message: string;
-  level: 'info' | 'success' | 'warn' | 'error';
-  done?: boolean;
-  error?: string;
-}
-
 interface SessionState {
   sessionId: string;
   running: boolean;
-  events: ProgressEvent[];
-  sseClients: Response[];
+  /** Raw pipeline progress events (replayed to late /run/progress subscribers) */
+  progressEvents: SseProgressPayload[];
+  /** Typed semantic events (replayed to late /search/events subscribers) */
+  semanticEvents: SsePayload[];
+  /** Counters updated as pipeline runs */
+  counters: { found: number; applied: number; skipped: number };
+  progressClients: Response[];
+  semanticClients: Response[];
 }
 
 let session: SessionState | null = null;
 
-/** Broadcasts a progress event to all connected SSE clients and stores it. */
-function emit(state: SessionState, event: ProgressEvent): void {
-  state.events.push(event);
-  const data = JSON.stringify(event);
-  for (const client of state.sseClients) {
+// ─── Emit helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Writes a named SSE event frame to a single client.
+ * Format: `event: <type>\ndata: <json>\n\n`
+ */
+function writeNamedEvent(client: Response, payload: SsePayload): void {
+  client.write(`event: ${payload.type}\ndata: ${JSON.stringify(payload)}\n\n`);
+}
+
+/**
+ * Broadcasts a raw progress event to all /run/progress subscribers and stores it.
+ * Automatically adds `type: 'progress'` and an ISO timestamp.
+ */
+function emit(
+  state: SessionState,
+  event: Omit<SseProgressPayload, 'type' | 'timestamp'>,
+): void {
+  const payload: SseProgressPayload = {
+    type: 'progress',
+    timestamp: new Date().toISOString(),
+    ...event,
+  };
+  state.progressEvents.push(payload);
+  const data = JSON.stringify(payload);
+  for (const client of state.progressClients) {
     client.write(`data: ${data}\n\n`);
   }
+
+  // Forward as a typed 'progress' event to /search/events subscribers
+  broadcastSemantic(state, payload);
+
   const msg = `[Agent] ${event.message}`;
   if (event.level === 'error') logger.error(msg);
   else if (event.level === 'warn') logger.warn(msg);
   else logger.info(msg);
+}
+
+/**
+ * Broadcasts a typed semantic event to all /search/events subscribers and stores it.
+ */
+function broadcastSemantic(state: SessionState, payload: SsePayload): void {
+  state.semanticEvents.push(payload);
+  for (const client of state.semanticClients) {
+    writeNamedEvent(client, payload);
+  }
 }
 
 // ─── POST /api/run ────────────────────────────────────────────────────────────
@@ -82,10 +123,18 @@ agentRouter.post('/run', async (req: Request, res: Response) => {
     }
   }
 
-  session = { sessionId, running: true, events: [], sseClients: [] };
+  session = {
+    sessionId,
+    running: true,
+    progressEvents: [],
+    semanticEvents: [],
+    counters: { found: 0, applied: 0, skipped: 0 },
+    progressClients: [],
+    semanticClients: [],
+  };
 
   // Start pipeline asynchronously (fire-and-forget)
-  runPipeline(session).catch((err) => {
+  runPipeline(session).catch((err: unknown) => {
     logger.error(`Pipeline error: ${err instanceof Error ? err.message : String(err)}`);
   });
 
@@ -96,8 +145,8 @@ agentRouter.post('/run', async (req: Request, res: Response) => {
 
 /**
  * GET /api/run/progress
- * Server-Sent Events stream of pipeline progress.
- * Each event: { step, total, message, level, done? }
+ * Server-Sent Events stream of raw pipeline progress.
+ * Each unnamed event carries: { step, total, message, level, done? }
  */
 agentRouter.get('/run/progress', (req: Request, res: Response) => {
   res.set({
@@ -114,14 +163,13 @@ agentRouter.get('/run/progress', (req: Request, res: Response) => {
     return;
   }
 
-  // Replay already-emitted events (in case client connects late)
-  for (const ev of session.events) {
+  // Replay already-emitted events (late-connect support)
+  for (const ev of session.progressEvents) {
     res.write(`data: ${JSON.stringify(ev)}\n\n`);
   }
 
   if (!session.running) {
-    // Session already finished — just close
-    const lastEvent = session.events[session.events.length - 1];
+    const lastEvent = session.progressEvents[session.progressEvents.length - 1];
     if (!lastEvent?.done) {
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     }
@@ -129,12 +177,65 @@ agentRouter.get('/run/progress', (req: Request, res: Response) => {
     return;
   }
 
-  // Register as a live SSE client
-  session.sseClients.push(res);
+  session.progressClients.push(res);
 
   req.on('close', () => {
     if (session) {
-      session.sseClients = session.sseClients.filter((c) => c !== res);
+      session.progressClients = session.progressClients.filter((c) => c !== res);
+    }
+  });
+});
+
+// ─── GET /api/search/events ───────────────────────────────────────────────────
+
+/**
+ * GET /api/search/events
+ * Server-Sent Events stream of typed semantic events.
+ * Uses named events so the browser can use addEventListener('job_found', …).
+ *
+ * Event types: job_found | job_applied | job_skipped | session_complete |
+ *              captcha_detected | progress
+ */
+agentRouter.get('/search/events', (req: Request, res: Response) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+
+  if (!session) {
+    const noSession = JSON.stringify({
+      type: 'session_complete',
+      timestamp: new Date().toISOString(),
+      success: false,
+      totalFound: 0,
+      totalApplied: 0,
+      totalSkipped: 0,
+      durationSeconds: 0,
+      error: 'No active session',
+    });
+    res.write(`event: session_complete\ndata: ${noSession}\n\n`);
+    res.end();
+    return;
+  }
+
+  // Replay stored semantic events for late-connecting clients
+  for (const ev of session.semanticEvents) {
+    writeNamedEvent(res, ev);
+  }
+
+  if (!session.running) {
+    res.end();
+    return;
+  }
+
+  session.semanticClients.push(res);
+
+  req.on('close', () => {
+    if (session) {
+      session.semanticClients = session.semanticClients.filter((c) => c !== res);
     }
   });
 });
@@ -269,7 +370,7 @@ async function runPipeline(state: SessionState): Promise<void> {
         return;
       }
 
-      cvPath = path.join(CV_DIR, cvFiles[0]!);
+      cvPath = path.join(CV_DIR, cvFiles[0] ?? '');
       emit(state, { step: 2, total: TOTAL_STEPS, message: `CV found: ${cvFiles[0]}`, level: 'success' });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -338,6 +439,20 @@ async function runPipeline(state: SessionState): Promise<void> {
       allJobs = await runMultiPlatformSearch(config, maxPerPlatform, (msg) => {
         emit(state, { step: 4, total: TOTAL_STEPS, message: msg, level: 'info' });
       });
+      // Emit a job_found semantic event for each discovered job
+      for (const job of allJobs) {
+        state.counters.found++;
+        broadcastSemantic(state, {
+          type: 'job_found',
+          timestamp: new Date().toISOString(),
+          jobId: job.id,
+          title: job.title,
+          company: job.company,
+          platform: job.platform,
+          score: job.compatibilityScore,
+          totalFound: state.counters.found,
+        });
+      }
       emit(state, { step: 4, total: TOTAL_STEPS, message: `Found ${allJobs.length} jobs total`, level: 'success' });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -447,10 +562,30 @@ async function runPipeline(state: SessionState): Promise<void> {
             });
             if (result.status === 'applied') {
               atsApplied++;
+              state.counters.applied++;
               const confirmStr = result.confirmationId ? ` [ID: ${result.confirmationId}]` : '';
               emit(state, { step: 6, total: TOTAL_STEPS, message: `✓ Applied via ${result.method}: ${job.title} @ ${job.company}${confirmStr}`, level: 'success' });
+              broadcastSemantic(state, {
+                type: 'job_applied',
+                timestamp: new Date().toISOString(),
+                jobId: job.id,
+                title: job.title,
+                company: job.company,
+                method: result.method,
+                totalApplied: state.counters.applied,
+              });
             } else {
+              state.counters.skipped++;
               emit(state, { step: 6, total: TOTAL_STEPS, message: `Already applied: ${job.title} @ ${job.company}`, level: 'info' });
+              broadcastSemantic(state, {
+                type: 'job_skipped',
+                timestamp: new Date().toISOString(),
+                jobId: job.id,
+                title: job.title,
+                company: job.company,
+                reason: 'already_applied',
+                totalSkipped: state.counters.skipped,
+              });
             }
           } else {
             // detectAts returned null after initial check — shouldn't happen but handle gracefully
@@ -481,9 +616,29 @@ async function runPipeline(state: SessionState): Promise<void> {
 
       if (job.compatibilityScore < minScore) {
         applications.push({ job, status: 'skipped_low_score', appliedAt: new Date().toISOString() });
+        state.counters.skipped++;
+        broadcastSemantic(state, {
+          type: 'job_skipped',
+          timestamp: new Date().toISOString(),
+          jobId: job.id,
+          title: job.title,
+          company: job.company,
+          reason: 'low_score',
+          totalSkipped: state.counters.skipped,
+        });
       } else {
         // Above threshold but no automated method available — user applies manually
         applications.push({ job, status: 'easy_apply_not_available', appliedAt: new Date().toISOString() });
+        state.counters.skipped++;
+        broadcastSemantic(state, {
+          type: 'job_skipped',
+          timestamp: new Date().toISOString(),
+          jobId: job.id,
+          title: job.title,
+          company: job.company,
+          reason: 'no_method',
+          totalSkipped: state.counters.skipped,
+        });
       }
     }
 
@@ -536,19 +691,40 @@ async function runPipeline(state: SessionState): Promise<void> {
       done: true,
     });
 
+    broadcastSemantic(state, {
+      type: 'session_complete',
+      timestamp: new Date().toISOString(),
+      success: true,
+      totalFound: allJobs.length,
+      totalApplied: applied,
+      totalSkipped: skipped + manual,
+      durationSeconds,
+    });
+
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     emit(state, { step: 0, total: TOTAL_STEPS, message: `Fatal error: ${msg}`, level: 'error', done: true, error: msg });
+    broadcastSemantic(state, {
+      type: 'session_complete',
+      timestamp: new Date().toISOString(),
+      success: false,
+      totalFound: 0,
+      totalApplied: state.counters.applied,
+      totalSkipped: state.counters.skipped,
+      durationSeconds: Math.round((Date.now() - startTime) / 1000),
+      error: msg,
+    });
   } finally {
     state.running = false;
     closeSseClients(state);
   }
 }
 
-/** Closes all SSE client connections. */
+/** Closes all SSE client connections (both progress and semantic). */
 function closeSseClients(state: SessionState): void {
-  for (const client of state.sseClients) {
+  for (const client of [...state.progressClients, ...state.semanticClients]) {
     try { client.end(); } catch { /* ignore */ }
   }
-  state.sseClients = [];
+  state.progressClients = [];
+  state.semanticClients = [];
 }
